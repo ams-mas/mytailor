@@ -7,6 +7,7 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -24,6 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -109,6 +114,18 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
+    var cutting by remember { mutableStateOf(false) }
+    val cutProgress = androidx.compose.animation.core.animateFloatAsState(
+        targetValue = if (cutting) 1f else 0f,
+        animationSpec = androidx.compose.animation.core.tween(durationMillis = 1050, easing = androidx.compose.animation.core.FastOutSlowInEasing),
+        label = "fabricCutProgress"
+    )
+    LaunchedEffect(cutting) {
+        if (cutting) {
+            kotlinx.coroutines.delay(1100)
+            onLogin(email.trim(), password)
+        }
+    }
 
     BoxWithConstraints(
         modifier = Modifier
@@ -178,7 +195,8 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                 modifier = Modifier.align(Alignment.Start).padding(top = 10.dp, bottom = 18.dp)
             )
             Button(
-                onClick = { onLogin(email.trim(), password) },
+                onClick = { if (!cutting) cutting = true },
+                enabled = !cutting,
                 modifier = Modifier.fillMaxWidth().height(56.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
@@ -198,9 +216,52 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                 Text("ثبت نام", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
         }
+        if (cutting) {
+            FabricScissorTransition(progress = cutProgress.value)
+        }
     }
 }
 
+@Composable
+private fun FabricScissorTransition(progress: Float) {
+    Canvas(Modifier.fillMaxSize()) {
+        val w = size.width
+        val h = size.height
+        drawRect(brush = Brush.linearGradient(colors = listOf(Color(0xFF3C2920), Color(0xFF876448), Color(0xFF4A3024), Color(0xFF241B18)), start = Offset(0f, 0f), end = Offset(w, h)))
+        val spacing = 12.dp.toPx()
+        var x = 0f
+        while (x < w) {
+            drawLine(Color(0x22F4D9B2), Offset(x, 0f), Offset(x + w * 0.12f, h), strokeWidth = 0.7.dp.toPx())
+            x += spacing
+        }
+        var y = 0f
+        while (y < h) {
+            drawLine(Color(0x187B5138), Offset(0f, y), Offset(w, y + h * 0.025f), strokeWidth = 1.dp.toPx())
+            y += spacing
+        }
+        val cutY = h * (1f - progress)
+        val cx = w * 0.5f
+        val glow = Color(0xFFFFC66B)
+        drawLine(Color(0x66FFB94D), Offset(cx, h), Offset(cx, cutY), strokeWidth = 15.dp.toPx(), cap = StrokeCap.Round)
+        drawLine(glow, Offset(cx, h), Offset(cx, cutY), strokeWidth = 2.dp.toPx(), cap = StrokeCap.Round)
+        val spread = w * 0.30f * progress
+        val left = Path().apply { moveTo(cx, h); lineTo(cx - spread, cutY + 26.dp.toPx()); lineTo(cx - spread * 0.72f, cutY + 64.dp.toPx()); lineTo(cx - 5.dp.toPx(), h); close() }
+        val right = Path().apply { moveTo(cx, h); lineTo(cx + spread, cutY + 26.dp.toPx()); lineTo(cx + spread * 0.72f, cutY + 64.dp.toPx()); lineTo(cx + 5.dp.toPx(), h); close() }
+        drawPath(left, Color(0xFFB58A61)); drawPath(left, Color(0x66F5D7B0), style = Stroke(width = 2.dp.toPx()))
+        drawPath(right, Color(0xFF9B704D)); drawPath(right, Color(0x66F5D7B0), style = Stroke(width = 2.dp.toPx()))
+        val sy = h * (1f - progress * 0.94f)
+        val pivot = Offset(cx, sy + 18.dp.toPx())
+        val length = 38.dp.toPx()
+        val angle = 0.30f + (1f - progress) * 0.35f
+        val dx = kotlin.math.sin(angle.toDouble()).toFloat() * length
+        val dy = kotlin.math.cos(angle.toDouble()).toFloat() * length
+        drawLine(glow, pivot, Offset(pivot.x - dx, pivot.y - dy), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+        drawLine(glow, pivot, Offset(pivot.x + dx, pivot.y - dy), strokeWidth = 4.dp.toPx(), cap = StrokeCap.Round)
+        drawCircle(Color(0xFF38231A), radius = 9.dp.toPx(), center = Offset(pivot.x - 13.dp.toPx(), pivot.y + 25.dp.toPx()), style = Stroke(width = 4.dp.toPx()))
+        drawCircle(Color(0xFF38231A), radius = 9.dp.toPx(), center = Offset(pivot.x + 13.dp.toPx(), pivot.y + 25.dp.toPx()), style = Stroke(width = 4.dp.toPx()))
+        drawCircle(glow, radius = 3.dp.toPx(), center = pivot)
+    }
+}
 
 @Composable
 private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
