@@ -24,15 +24,12 @@ import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 private val Burgundy = Color(0xFF702027)
-private val Ink = Color(0xFF292323)
-private val Muted = Color(0xFF776F6C)
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
@@ -66,6 +63,9 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
             .background(Color.Black)
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
+        // Capture the available height in this scope to avoid the implicit receiver error.
+        val screenHeight = maxHeight
+
         AsyncImage(
             model = WORKSHOP_IMAGE_URL,
             contentDescription = "تصویر کارگاه خیاطی",
@@ -91,8 +91,8 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Top
         ) {
-            // Start the form around the middle of the screen.
-            Spacer(Modifier.height(maxHeight * 0.45f))
+            // Position the first field around the middle of the screen.
+            Spacer(Modifier.height(screenHeight * 0.45f))
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
