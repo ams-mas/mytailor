@@ -36,7 +36,7 @@ private val Cream = Color(0xFFF7EEE6)
 private val Ink = Color(0xFF292323)
 private val Muted = Color(0xFF776F6C)
 private const val WORKSHOP_IMAGE_URL =
-    "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/My%20Tailoring%20Workshop.png"
+    "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
