@@ -38,20 +38,24 @@ private val BurgundyDark = Color(0xFF55191E)
 private val PageBg = Color(0xFFF8F6F3)
 private val TextDark = Color(0xFF272424)
 private val TextMuted = Color(0xFF817B78)
-private data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
+internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
 class MainActivity : ComponentActivity() {
+    private lateinit var localDatabase: LocalDatabase
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        localDatabase = LocalDatabase(this)
         setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 var loggedIn by remember { mutableStateOf(false) }
                 if (loggedIn) {
                     TailorHome(
+                        database = localDatabase,
                         onLogout = { loggedIn = false },
                         onAddOrder = { Toast.makeText(this, "فرم ثبت سفارش در مرحله بعد اضافه می‌شود", Toast.LENGTH_SHORT).show() }
                     )
@@ -165,13 +169,17 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
 
 
 @Composable
-private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
+private fun TailorHome(database: LocalDatabase, onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
+    LaunchedEffect(database) {
+        shopSkills = database.getSkills().map { ShopSkill(it) }
+        registeredTailors = database.getTailors()
+    }
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (selected) {
@@ -186,14 +194,15 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                         RegisterSkillsForm(
                             initialSkills = shopSkills,
                             onBack = { showSkillsForm = false },
-                            onSave = { shopSkills = it; showSkillsForm = false }
+                            onSave = { skills -> database.replaceSkills(skills.map { it.name }); shopSkills = skills; showSkillsForm = false }
                         )
                     } else if (showTailorForm) {
                         RegisterTailorForm(
                             availableSkills = shopSkills.map { it.name },
                             onBack = { showTailorForm = false },
                             onSave = { record ->
-                                registeredTailors = registeredTailors + record
+                                database.addTailor(record)
+                                registeredTailors = database.getTailors()
                                 showTailorForm = false
                             }
                         )
