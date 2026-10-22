@@ -181,7 +181,7 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
                     if (showWorkshopSettings) {
-                        WorkshopSettingsScreen(onBack = { showWorkshopSettings = false })
+                        WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true })
                     } else if (showSkillsForm) {
                         RegisterSkillsForm(
                             initialSkills = shopSkills,
@@ -203,8 +203,8 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SettingsMenuItem("تنظیمات\\nکارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
-                                SettingsMenuItem("ثبت خیاط", "♙", Color(0xFFE7EEF9), Modifier.weight(1f)) { showTailorForm = true }
-                                SettingsMenuItem("ثبت مهارت‌ها", "✂", Color(0xFFE7F3E8), Modifier.weight(1f)) { showSkillsForm = true }
+                                Spacer(Modifier.weight(1f))
+                                Spacer(Modifier.weight(1f))
                             }
                             Spacer(Modifier.height(18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -267,10 +267,16 @@ private fun InfoCountCard(title: String, count: String, modifier: Modifier = Mod
 }
 
 @Composable
-private fun WorkshopSettingsScreen(onBack: () -> Unit) {
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+private fun WorkshopSettingsScreen(onBack: () -> Unit, onRegisterTailor: () -> Unit, onRegisterSkills: () -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("تنظیمات کارگاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("در این بخش معلومات عمومی کارگاه مانند نام، شماره تماس و آدرس اضافه خواهد شد.", color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp, bottom = 18.dp))
+        Text("مدیریت خیاطان و مهارت‌های مورد نیاز کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+            SettingsMenuItem("ثبت خیاط", "♙", Color(0xFFE7EEF9), Modifier.weight(1f), onRegisterTailor)
+            SettingsMenuItem("ثبت مهارت‌ها", "✂", Color(0xFFE7F3E8), Modifier.weight(1f), onRegisterSkills)
+            Spacer(Modifier.weight(1f))
+        }
+        Spacer(Modifier.height(22.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
     }
 }
