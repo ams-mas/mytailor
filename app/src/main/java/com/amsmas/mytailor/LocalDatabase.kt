@@ -5,6 +5,7 @@ import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
 import org.json.JSONArray
+import org.json.JSONObject
 
 /**
  * On-device database. Records remain available after the app is closed or the phone restarts.
@@ -66,6 +67,64 @@ internal class LocalDatabase(context: Context) :
             put("skills_json", JSONArray(tailor.skills).toString())
         }
         writableDatabase.insertOrThrow("tailors", null, values)
+    }
+
+    fun createBackupJson(): String {
+        val root = JSONObject()
+        root.put("format", "mytailor-backup")
+        root.put("version", 1)
+        root.put("skills", JSONArray(getSkills()))
+        val tailorsJson = JSONArray()
+        getTailors().forEach { tailor ->
+            tailorsJson.put(JSONObject().apply {
+                put("name", tailor.name)
+                put("phone", tailor.phone)
+                put("address", tailor.address)
+                put("skills", JSONArray(tailor.skills))
+            })
+        }
+        root.put("tailors", tailorsJson)
+        return root.toString(2)
+    }
+
+    fun restoreBackupJson(jsonText: String) {
+        val root = JSONObject(jsonText)
+        require(root.optString("format") == "mytailor-backup") { "این فایل، نسخه پشتیبان MyTailor نیست." }
+        require(root.optInt("version", -1) == 1) { "نسخه این فایل پشتیبان پشتیبانی نمی‌شود." }
+        val skillsArray = root.getJSONArray("skills")
+        val tailorsArray = root.getJSONArray("tailors")
+        val skills = (0 until skillsArray.length()).map { skillsArray.getString(it).trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
+        val tailors = (0 until tailorsArray.length()).map { i ->
+            val item = tailorsArray.getJSONObject(i)
+            val itemSkills = item.getJSONArray("skills")
+            TailorRecord(
+                item.getString("name"),
+                item.getString("phone"),
+                item.optString("address", ""),
+                (0 until itemSkills.length()).map { itemSkills.getString(it) }
+            )
+        }
+
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("tailors", null, null)
+            db.delete("workshop_skills", null, null)
+            skills.forEach { name ->
+                db.insertOrThrow("workshop_skills", null, ContentValues().apply { put("name", name) })
+            }
+            tailors.forEach { tailor ->
+                db.insertOrThrow("tailors", null, ContentValues().apply {
+                    put("name", tailor.name)
+                    put("phone", tailor.phone)
+                    put("address", tailor.address)
+                    put("skills_json", JSONArray(tailor.skills).toString())
+                })
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
     }
 
     companion object {
