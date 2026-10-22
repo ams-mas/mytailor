@@ -219,7 +219,9 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
-                    if (showBackupRestore) {\n                        BackupRestoreScreen(onBack = { showBackupRestore = false }, onBackup = onBackup, onRestore = onRestore)\n                    } else if (showWorkshopSettings) {
+                    if (showBackupRestore) {
+                        BackupRestoreScreen(onBack = { showBackupRestore = false }, onBackup = onBackup, onRestore = onRestore)
+                    } else if (showWorkshopSettings) {
                         WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true })
                     } else if (showSkillsForm) {
                         RegisterSkillsForm(
