@@ -31,7 +31,6 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 private val Burgundy = Color(0xFF702027)
-private val BurgundyDark = Color(0xFF51171D)
 private val Ink = Color(0xFF292323)
 private val Muted = Color(0xFF776F6C)
 private const val WORKSHOP_IMAGE_URL =
@@ -67,14 +66,12 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
             .background(Color.Black)
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        // The workshop photo fills the entire screen behind the login form.
         AsyncImage(
             model = WORKSHOP_IMAGE_URL,
             contentDescription = "تصویر کارگاه خیاطی",
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize()
         )
-        // A light darkening layer keeps the form readable without hiding the photo.
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -94,20 +91,8 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.Center
         ) {
-            // The form itself has no solid background, so the image remains visible.
-            Text(
-                "ورود به حساب",
-                color = Color.White,
-                fontSize = 27.sp,
-                fontWeight = FontWeight.Bold
-            )
-            Text(
-                "برای ادامه، معلومات حساب خود را وارد کنید",
-                color = Color.White,
-                fontSize = 13.sp,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 7.dp, bottom = 24.dp)
-            )
+            // A little extra space above the fields moves the transparent form down.
+            Spacer(Modifier.height(64.dp))
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
