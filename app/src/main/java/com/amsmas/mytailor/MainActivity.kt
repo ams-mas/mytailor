@@ -169,6 +169,7 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
+    var showWorkshopSettings by remember { mutableStateOf(false) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
@@ -179,7 +180,9 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
-                    if (showSkillsForm) {
+                    if (showWorkshopSettings) {
+                        WorkshopSettingsScreen(onBack = { showWorkshopSettings = false })
+                    } else if (showSkillsForm) {
                         RegisterSkillsForm(
                             initialSkills = shopSkills,
                             onBack = { showSkillsForm = false },
@@ -195,17 +198,21 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                             }
                         )
                     } else {
-                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
-                            Text("تنظیمات", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                            Spacer(Modifier.height(14.dp))
-                            Button(onClick = { showTailorForm = true }, modifier = Modifier.fillMaxWidth()) { Text("ثبت خیاط") }
-                            Spacer(Modifier.height(10.dp))
-                            Button(onClick = { showSkillsForm = true }, modifier = Modifier.fillMaxWidth()) { Text("ثبت مهارت‌ها") }
-                            Spacer(Modifier.height(8.dp))
-                            Text("تعداد مهارت‌های تعریف‌شده: " + shopSkills.size.toString(), color = TextMuted, fontSize = 14.sp)
-                            Text("تعداد خیاطان ثبت‌شده: " + registeredTailors.size.toString(), color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+                            Text("تنظیمات", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                SettingsMenuItem("تنظیمات\\nکارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
+                                SettingsMenuItem("ثبت خیاط", "♙", Color(0xFFE7EEF9), Modifier.weight(1f)) { showTailorForm = true }
+                                SettingsMenuItem("ثبت مهارت‌ها", "✂", Color(0xFFE7F3E8), Modifier.weight(1f)) { showSkillsForm = true }
+                            }
                             Spacer(Modifier.height(18.dp))
-                            Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("خروج از حساب") }
+                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                InfoCountCard("مهارت‌های کارگاه", shopSkills.size.toString(), Modifier.weight(1f))
+                                InfoCountCard("خیاطان ثبت‌شده", registeredTailors.size.toString(), Modifier.weight(1f))
+                            }
+                            Spacer(Modifier.height(22.dp))
+                            Button(onClick = onLogout, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("خروج از حساب") }
                         }
                     }
                 }
@@ -230,6 +237,43 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
 }
 
 
+
+
+@Composable
+private fun SettingsMenuItem(title: String, symbol: String, tileColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
+    Column(
+        modifier = modifier
+            .height(122.dp)
+            .background(Color.White, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 4.dp, vertical = 12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Box(Modifier.size(42.dp).background(tileColor, RoundedCornerShape(13.dp)), contentAlignment = Alignment.Center) {
+            Text(symbol, color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(10.dp))
+        Text(title, color = TextDark, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center, lineHeight = 15.sp)
+    }
+}
+
+@Composable
+private fun InfoCountCard(title: String, count: String, modifier: Modifier = Modifier) {
+    Column(modifier.background(Color.White, RoundedCornerShape(13.dp)).padding(12.dp)) {
+        Text(count, color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+        Text(title, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+    }
+}
+
+@Composable
+private fun WorkshopSettingsScreen(onBack: () -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+        Text("تنظیمات کارگاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("در این بخش معلومات عمومی کارگاه مانند نام، شماره تماس و آدرس اضافه خواهد شد.", color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 10.dp, bottom = 18.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
+    }
+}
 
 @Composable
 private fun RegisterSkillsForm(
