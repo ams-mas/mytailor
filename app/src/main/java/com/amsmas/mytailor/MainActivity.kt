@@ -16,6 +16,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,7 @@ private val BurgundyDark = Color(0xFF55191E)
 private val PageBg = Color(0xFFF8F6F3)
 private val TextDark = Color(0xFF272424)
 private val TextMuted = Color(0xFF817B78)
+private data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
@@ -164,6 +166,8 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
 @Composable
 private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
+    var showTailorForm by remember { mutableStateOf(false) }
+    var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (selected) {
@@ -171,9 +175,26 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                 MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
-                MainTab.SETTINGS -> Column {
-                    SimpleSection("تنظیمات", "تنظیمات کارگاه و حساب کاربری")
-                    Button(onClick = onLogout, modifier = Modifier.fillMaxWidth().padding(20.dp)) { Text("خروج از حساب") }
+                MainTab.SETTINGS -> {
+                    if (showTailorForm) {
+                        RegisterTailorForm(
+                            onBack = { showTailorForm = false },
+                            onSave = { record ->
+                                registeredTailors = registeredTailors + record
+                                showTailorForm = false
+                            }
+                        )
+                    } else {
+                        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(20.dp)) {
+                            Text("تنظیمات", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                            Spacer(Modifier.height(14.dp))
+                            Button(onClick = { showTailorForm = true }, modifier = Modifier.fillMaxWidth()) { Text("ثبت خیاط") }
+                            Spacer(Modifier.height(8.dp))
+                            Text("تعداد خیاطان ثبت‌شده: " + registeredTailors.size.toString(), color = TextMuted, fontSize = 14.sp)
+                            Spacer(Modifier.height(18.dp))
+                            Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("خروج از حساب") }
+                        }
+                    }
                 }
             }
             if (selected == MainTab.HOME) {
@@ -192,6 +213,44 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+
+@Composable
+private fun RegisterTailorForm(onBack: () -> Unit, onSave: (TailorRecord) -> Unit) {
+    var name by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    val skillOptions = listOf("اندازه‌گیری", "برش‌کاری", "دوخت", "الگوسازی", "گلدوزی", "اتو و تکمیل", "تعمیر و تغییر لباس")
+    var selectedSkills by remember { mutableStateOf(setOf<String>()) }
+    var error by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), horizontalAlignment = Alignment.Start) {
+        Text("ثبت خیاط", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("معلومات خیاط و بخش‌های کاری او را وارد کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
+        OutlinedTextField(value = name, onValueChange = { name = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("نام خیاط") }, singleLine = true)
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(value = phone, onValueChange = { phone = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
+        Spacer(Modifier.height(10.dp))
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2)
+        Spacer(Modifier.height(18.dp))
+        Text("در کدام بخش‌های خیاطی مهارت دارد؟", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        skillOptions.forEach { skill ->
+            Row(Modifier.fillMaxWidth().clickable { selectedSkills = if (skill in selectedSkills) selectedSkills - skill else selectedSkills + skill }.padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
+                Checkbox(checked = skill in selectedSkills, onCheckedChange = { checked -> selectedSkills = if (checked) selectedSkills + skill else selectedSkills - skill })
+                Text(skill, color = TextDark, fontSize = 14.sp)
+            }
+        }
+        if (error) Text("لطفاً نام، شماره تماس و حداقل یک مهارت را وارد کنید.", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+        Spacer(Modifier.height(12.dp))
+        Button(onClick = {
+            if (name.isBlank() || phone.isBlank() || selectedSkills.isEmpty()) error = true
+            else onSave(TailorRecord(name.trim(), phone.trim(), address.trim(), selectedSkills.toList()))
+        }, modifier = Modifier.fillMaxWidth()) { Text("ذخیره خیاط") }
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت") }
+        Spacer(Modifier.height(24.dp))
     }
 }
 
