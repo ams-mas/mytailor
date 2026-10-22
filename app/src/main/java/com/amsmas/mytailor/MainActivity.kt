@@ -3,6 +3,8 @@ package com.amsmas.mytailor
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -53,9 +55,37 @@ class MainActivity : ComponentActivity() {
         setContent {
             CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
                 var loggedIn by remember { mutableStateOf(false) }
+                val backupLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+                    if (uri != null) {
+                        runCatching {
+                            val json = localDatabase.createBackupJson()
+                            contentResolver.openOutputStream(uri)?.use { it.write(json.toByteArray(Charsets.UTF_8)) }
+                                ?: error("امکان نوشتن فایل وجود ندارد.")
+                        }.onSuccess {
+                            Toast.makeText(this, "نسخه پشتیبان ذخیره شد", Toast.LENGTH_LONG).show()
+                        }.onFailure {
+                            Toast.makeText(this, "ذخیره نسخه پشتیبان ناموفق بود: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
+                val restoreLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+                    if (uri != null) {
+                        runCatching {
+                            val json = contentResolver.openInputStream(uri)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() }
+                                ?: error("امکان خواندن فایل وجود ندارد.")
+                            localDatabase.restoreBackupJson(json)
+                        }.onSuccess {
+                            Toast.makeText(this, "بازیابی انجام شد. صفحه را دوباره باز کنید تا معلومات تازه نمایش داده شود.", Toast.LENGTH_LONG).show()
+                        }.onFailure {
+                            Toast.makeText(this, "بازیابی ناموفق بود: ${it.localizedMessage}", Toast.LENGTH_LONG).show()
+                        }
+                    }
+                }
                 if (loggedIn) {
                     TailorHome(
                         database = localDatabase,
+                        onBackup = { backupLauncher.launch("mytailor-backup.json") },
+                        onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) },
                         onLogout = { loggedIn = false },
                         onAddOrder = { Toast.makeText(this, "فرم ثبت سفارش در مرحله بعد اضافه می‌شود", Toast.LENGTH_SHORT).show() }
                     )
@@ -169,11 +199,12 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
 
 
 @Composable
-private fun TailorHome(database: LocalDatabase, onLogout: () -> Unit, onAddOrder: () -> Unit) {
+private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
+    var showBackupRestore by remember { mutableStateOf(false) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
     LaunchedEffect(database) {
@@ -188,7 +219,7 @@ private fun TailorHome(database: LocalDatabase, onLogout: () -> Unit, onAddOrder
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
-                    if (showWorkshopSettings) {
+                    if (showBackupRestore) {\n                        BackupRestoreScreen(onBack = { showBackupRestore = false }, onBackup = onBackup, onRestore = onRestore)\n                    } else if (showWorkshopSettings) {
                         WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true })
                     } else if (showSkillsForm) {
                         RegisterSkillsForm(
@@ -272,6 +303,20 @@ private fun InfoCountCard(title: String, count: String, modifier: Modifier = Mod
     Column(modifier.background(Color.White, RoundedCornerShape(13.dp)).padding(12.dp)) {
         Text(count, color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
         Text(title, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+    }
+}
+
+@Composable
+private fun BackupRestoreScreen(onBack: () -> Unit, onBackup: () -> Unit, onRestore: () -> Unit) {
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text("پشتیبان‌گیری و بازیابی", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("از معلومات کارگاه نسخه پشتیبان بسازید یا معلومات قبلی را از فایل بازیابی کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
+        SettingsMenuItem("ایجاد نسخه پشتیبان", "⬇", Color(0xFFE7F3E8), Modifier.fillMaxWidth().height(122.dp)) { onBackup() }
+        Spacer(Modifier.height(12.dp))
+        SettingsMenuItem("بازیابی از فایل", "⬆", Color(0xFFF6E7E8), Modifier.fillMaxWidth().height(122.dp)) { onRestore() }
+        Spacer(Modifier.height(12.dp))
+        Text("توجه: بازیابی، فهرست مهارت‌ها و خیاطان فعلی را با معلومات موجود در فایل جایگزین می‌کند.", color = Color(0xFF9A4B16), fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
     }
 }
 
