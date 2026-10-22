@@ -35,11 +35,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
+// MyTailor unified theme: burgundy, warm ivory, and muted rose.
 private val Burgundy = Color(0xFF702027)
 private val BurgundyDark = Color(0xFF55191E)
-private val PageBg = Color(0xFFF8F6F3)
-private val TextDark = Color(0xFF272424)
-private val TextMuted = Color(0xFF817B78)
+private val BurgundySoft = Color(0xFFF4E7E8)
+private val PageBg = Color(0xFFFAF7F4)
+private val CardBg = Color(0xFFFFFFFF)
+private val BorderSoft = Color(0xFFD9C6C5)
+private val TextDark = Color(0xFF302627)
+private val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
@@ -148,7 +152,7 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                 modifier = Modifier.fillMaxWidth(),
                 singleLine = true,
                 label = { Text("ایمیل یا شماره تماس") },
-                colors = fieldColors(),
+                colors = loginFieldColors(),
                 shape = RoundedCornerShape(14.dp)
             )
             Spacer(Modifier.height(14.dp))
@@ -411,7 +415,7 @@ private fun RegisterSkillsForm(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Text("ثبت مهارت‌ها", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("مالک می‌تواند کارهایی را که در کارگاه انجام می‌شود تعریف کند.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
-        OutlinedTextField(value = newSkill, onValueChange = { newSkill = it; error = false }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("نام مهارت یا نوع کار") })
+        OutlinedTextField(value = newSkill, onValueChange = { newSkill = it; error = false }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("نام مهارت یا نوع کار") }, colors = appFieldColors())
         if (error) Text("نام مهارت را وارد کنید.", color = Color(0xFFB3261E), fontSize = 12.sp)
         Button(onClick = {
             val value = newSkill.trim()
@@ -424,7 +428,7 @@ private fun RegisterSkillsForm(
                 newSkill = ""
                 error = false
             }
-        }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("افزودن مهارت") }
+        }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("افزودن مهارت") }
 
         Spacer(Modifier.height(18.dp))
         Text("مهارت‌های کارگاه", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -436,7 +440,7 @@ private fun RegisterSkillsForm(
             }
         }
         Spacer(Modifier.height(18.dp))
-        Button(onClick = { onSave(skills) }, modifier = Modifier.fillMaxWidth()) { Text("ذخیره تغییرات") }
+        Button(onClick = { onSave(skills) }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ذخیره تغییرات") }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت") }
         Spacer(Modifier.height(24.dp))
@@ -454,11 +458,11 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), horizontalAlignment = Alignment.Start) {
         Text("ثبت خیاط", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("معلومات خیاط و بخش‌های کاری او را وارد کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
-        OutlinedTextField(value = name, onValueChange = { name = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("نام خیاط") }, singleLine = true)
+        OutlinedTextField(value = name, onValueChange = { name = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("نام خیاط") }, singleLine = true, colors = appFieldColors())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = phone, onValueChange = { phone = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true)
+        OutlinedTextField(value = phone, onValueChange = { phone = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors())
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2)
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2, colors = appFieldColors())
         Spacer(Modifier.height(18.dp))
         Text("در کدام بخش‌های خیاطی مهارت دارد؟", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         if (availableSkills.isEmpty()) {
@@ -475,7 +479,7 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
         Button(onClick = {
             if (name.isBlank() || phone.isBlank() || selectedSkills.isEmpty()) error = true
             else onSave(TailorRecord(name.trim(), phone.trim(), address.trim(), selectedSkills.toList()))
-        }, modifier = Modifier.fillMaxWidth()) { Text("ذخیره خیاط") }
+        }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ذخیره خیاط") }
         Spacer(Modifier.height(8.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت") }
         Spacer(Modifier.height(24.dp))
@@ -549,12 +553,29 @@ private fun SimpleSection(title: String, description: String) {
 }
 
 @Composable
-private fun fieldColors() = OutlinedTextFieldDefaults.colors(
+private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = Color.White,
     unfocusedBorderColor = Color(0xCCFFFFFF),
     focusedLabelColor = Color.White,
     unfocusedLabelColor = Color(0xFFECECEC),
     focusedTextColor = Color.White,
     unfocusedTextColor = Color.White,
-    cursorColor = Color.White
+    cursorColor = Color.White,
+    focusedContainerColor = Color(0x33201818),
+    unfocusedContainerColor = Color(0x33201818)
+)
+
+@Composable
+private fun appFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Burgundy,
+    unfocusedBorderColor = BorderSoft,
+    focusedLabelColor = Burgundy,
+    unfocusedLabelColor = TextMuted,
+    focusedTextColor = TextDark,
+    unfocusedTextColor = TextDark,
+    cursorColor = Burgundy,
+    focusedContainerColor = CardBg,
+    unfocusedContainerColor = CardBg,
+    focusedLeadingIconColor = Burgundy,
+    focusedTrailingIconColor = Burgundy
 )
