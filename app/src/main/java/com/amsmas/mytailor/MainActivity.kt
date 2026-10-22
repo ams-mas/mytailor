@@ -245,7 +245,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                                 SettingsMenuItem("تنظیمات کارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
-                                SettingsMenuItem("پشتیبان‌گیری و بازیابی", "↻", Color(0xFFE7F3E8), Modifier.weight(1f)) { showBackupRestore = true }
+                                SettingsMenuItem("پشتیبان‌گیری و بازیابی", "⟳", Color(0xFFE7F3E8), Modifier.weight(1f)) { showBackupRestore = true }
                             }
                             Spacer(Modifier.height(18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -312,9 +312,9 @@ private fun BackupRestoreScreen(onBack: () -> Unit, onBackup: () -> Unit, onRest
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("پشتیبان‌گیری و بازیابی", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("از معلومات کارگاه نسخه پشتیبان بسازید یا معلومات قبلی را از فایل بازیابی کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 18.dp))
-        SettingsMenuItem("ایجاد نسخه پشتیبان", "⬇", Color(0xFFE7F3E8), Modifier.fillMaxWidth().height(122.dp)) { onBackup() }
+        SettingsMenuItem("ایجاد نسخه پشتیبان", "⇧", Color(0xFFE7F3E8), Modifier.fillMaxWidth().height(122.dp)) { onBackup() }
         Spacer(Modifier.height(12.dp))
-        SettingsMenuItem("بازیابی از فایل", "⬆", Color(0xFFF6E7E8), Modifier.fillMaxWidth().height(122.dp)) { onRestore() }
+        SettingsMenuItem("بازیابی از فایل", "⇩", Color(0xFFF6E7E8), Modifier.fillMaxWidth().height(122.dp)) { onRestore() }
         Spacer(Modifier.height(12.dp))
         Text("توجه: بازیابی، فهرست مهارت‌ها و خیاطان فعلی را با معلومات موجود در فایل جایگزین می‌کند.", color = Color(0xFF9A4B16), fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
