@@ -60,7 +60,7 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    Box(
+    BoxWithConstraints(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
@@ -89,10 +89,10 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                 .imePadding()
                 .padding(horizontal = 26.dp, vertical = 28.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
-            verticalArrangement = Arrangement.Center
+            verticalArrangement = Arrangement.Top
         ) {
-            // A little extra space above the fields moves the transparent form down.
-            Spacer(Modifier.height(64.dp))
+            // Start the form around the middle of the screen.
+            Spacer(Modifier.height(maxHeight * 0.45f))
             OutlinedTextField(
                 value = email,
                 onValueChange = { email = it },
