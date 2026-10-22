@@ -39,6 +39,7 @@ private val PageBg = Color(0xFFF8F6F3)
 private val TextDark = Color(0xFF272424)
 private val TextMuted = Color(0xFF817B78)
 private data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
+private data class ShopSkill(val name: String)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
@@ -167,6 +168,8 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
 private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
+    var showSkillsForm by remember { mutableStateOf(false) }
+    var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
@@ -176,7 +179,13 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
-                    if (showTailorForm) {
+                    if (showSkillsForm) {
+                        RegisterSkillsForm(
+                            initialSkills = shopSkills,
+                            onBack = { showSkillsForm = false },
+                            onSave = { shopSkills = it; showSkillsForm = false }
+                        )
+                    } else if (showTailorForm) {
                         RegisterTailorForm(
                             onBack = { showTailorForm = false },
                             onSave = { record ->
@@ -189,8 +198,11 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                             Text("تنظیمات", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
                             Spacer(Modifier.height(14.dp))
                             Button(onClick = { showTailorForm = true }, modifier = Modifier.fillMaxWidth()) { Text("ثبت خیاط") }
+                            Spacer(Modifier.height(10.dp))
+                            Button(onClick = { showSkillsForm = true }, modifier = Modifier.fillMaxWidth()) { Text("ثبت مهارت‌ها") }
                             Spacer(Modifier.height(8.dp))
-                            Text("تعداد خیاطان ثبت‌شده: " + registeredTailors.size.toString(), color = TextMuted, fontSize = 14.sp)
+                            Text("تعداد مهارت‌های تعریف‌شده: " + shopSkills.size.toString(), color = TextMuted, fontSize = 14.sp)
+                            Text("تعداد خیاطان ثبت‌شده: " + registeredTailors.size.toString(), color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
                             Spacer(Modifier.height(18.dp))
                             Button(onClick = onLogout, modifier = Modifier.fillMaxWidth()) { Text("خروج از حساب") }
                         }
@@ -216,6 +228,52 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
     }
 }
 
+
+
+@Composable
+private fun RegisterSkillsForm(
+    initialSkills: List<ShopSkill>,
+    onBack: () -> Unit,
+    onSave: (List<ShopSkill>) -> Unit
+) {
+    var skills by remember { mutableStateOf(initialSkills) }
+    var newSkill by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf(false) }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
+        Text("ثبت مهارت‌ها", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("مالک می‌تواند کارهایی را که در کارگاه انجام می‌شود تعریف کند.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
+        OutlinedTextField(value = newSkill, onValueChange = { newSkill = it; error = false }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("نام مهارت یا نوع کار") })
+        if (error) Text("نام مهارت را وارد کنید.", color = Color(0xFFB3261E), fontSize = 12.sp)
+        Button(onClick = {
+            val value = newSkill.trim()
+            if (value.isBlank()) error = true
+            else if (skills.none { it.name.equals(value, ignoreCase = true) }) {
+                skills = skills + ShopSkill(value)
+                newSkill = ""
+                error = false
+            } else {
+                newSkill = ""
+                error = false
+            }
+        }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp)) { Text("افزودن مهارت") }
+
+        Spacer(Modifier.height(18.dp))
+        Text("مهارت‌های کارگاه", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        if (skills.isEmpty()) Text("هنوز مهارتی ثبت نشده است.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 10.dp))
+        skills.forEach { skill ->
+            Row(Modifier.fillMaxWidth().padding(top = 8.dp).background(Color.White, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(skill.name, color = TextDark, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text("حذف", color = Color(0xFFB3261E), fontSize = 13.sp, modifier = Modifier.clickable { skills = skills.filterNot { it == skill } }.padding(8.dp))
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Button(onClick = { onSave(skills) }, modifier = Modifier.fillMaxWidth()) { Text("ذخیره تغییرات") }
+        Spacer(Modifier.height(8.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت") }
+        Spacer(Modifier.height(24.dp))
+    }
+}
 
 @Composable
 private fun RegisterTailorForm(onBack: () -> Unit, onSave: (TailorRecord) -> Unit) {
