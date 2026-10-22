@@ -32,7 +32,6 @@ import coil.compose.AsyncImage
 
 private val Burgundy = Color(0xFF702027)
 private val BurgundyDark = Color(0xFF51171D)
-private val Cream = Color(0xFFF7EEE6)
 private val Ink = Color(0xFF292323)
 private val Muted = Color(0xFF776F6C)
 private const val WORKSHOP_IMAGE_URL =
@@ -62,63 +61,82 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
     var password by remember { mutableStateOf("") }
     var passwordVisible by remember { mutableStateOf(false) }
 
-    Column(
-        modifier = Modifier.fillMaxSize().background(Cream)
-            .verticalScroll(rememberScrollState())
-            .windowInsetsPadding(WindowInsets.navigationBars),
-        horizontalAlignment = Alignment.CenterHorizontally
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .background(Color.Black)
+            .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        Box(modifier = Modifier.fillMaxWidth().height(330.dp)) {
-            AsyncImage(
-                model = WORKSHOP_IMAGE_URL,
-                contentDescription = "تصویر کارگاه خیاطی",
-                contentScale = ContentScale.Crop,
-                modifier = Modifier.fillMaxSize()
-            )
-            Box(
-                modifier = Modifier.fillMaxSize().background(
-                    Brush.verticalGradient(listOf(Color(0x33201010), Color(0xCC321316)))
+        // The workshop photo fills the entire screen behind the login form.
+        AsyncImage(
+            model = WORKSHOP_IMAGE_URL,
+            contentDescription = "تصویر کارگاه خیاطی",
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize()
+        )
+        // A light darkening layer keeps the form readable without hiding the photo.
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(Color(0x55301818), Color(0x77301818), Color(0x55301818))
+                    )
                 )
-            )
-            Column(
-                modifier = Modifier.align(Alignment.BottomCenter).padding(horizontal = 20.dp, vertical = 22.dp),
-                horizontalAlignment = Alignment.CenterHorizontally
-            ) {
-                Text("خیاطی من", color = Color.White, fontSize = 36.sp, fontWeight = FontWeight.ExtraBold)
-                Text("مدیریت سفارشات خیاطی", color = Color.White, fontSize = 17.sp, modifier = Modifier.padding(top = 6.dp))
-                Text("به صورت ساده و حرفه‌ای", color = Color.White, fontSize = 14.sp, modifier = Modifier.padding(top = 4.dp))
-            }
-        }
+        )
 
         Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 26.dp, vertical = 24.dp),
-            horizontalAlignment = Alignment.CenterHorizontally
+            modifier = Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .imePadding()
+                .padding(horizontal = 26.dp, vertical = 28.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.Center
         ) {
-            Text("ورود به حساب", color = BurgundyDark, fontSize = 25.sp, fontWeight = FontWeight.Bold)
+            // The form itself has no solid background, so the image remains visible.
+            Text(
+                "ورود به حساب",
+                color = Color.White,
+                fontSize = 27.sp,
+                fontWeight = FontWeight.Bold
+            )
             Text(
                 "برای ادامه، معلومات حساب خود را وارد کنید",
-                color = Muted, fontSize = 13.sp, textAlign = TextAlign.Center,
-                modifier = Modifier.padding(top = 7.dp, bottom = 20.dp)
+                color = Color.White,
+                fontSize = 13.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(top = 7.dp, bottom = 24.dp)
             )
             OutlinedTextField(
-                value = email, onValueChange = { email = it }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, label = { Text("ایمیل یا شماره تماس") },
-                colors = fieldColors(), shape = RoundedCornerShape(14.dp)
+                value = email,
+                onValueChange = { email = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("ایمیل یا شماره تماس") },
+                colors = fieldColors(),
+                shape = RoundedCornerShape(14.dp)
             )
             Spacer(Modifier.height(14.dp))
             OutlinedTextField(
-                value = password, onValueChange = { password = it }, modifier = Modifier.fillMaxWidth(),
-                singleLine = true, label = { Text("رمز عبور") },
+                value = password,
+                onValueChange = { password = it },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+                label = { Text("رمز عبور") },
                 visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
                     androidx.compose.material3.TextButton(onClick = { passwordVisible = !passwordVisible }) {
-                        Text(if (passwordVisible) "پنهان" else "نمایش", color = Burgundy)
+                        Text(if (passwordVisible) "پنهان" else "نمایش", color = Color.White)
                     }
                 },
-                colors = fieldColors(), shape = RoundedCornerShape(14.dp)
+                colors = fieldColors(),
+                shape = RoundedCornerShape(14.dp)
             )
             Text(
-                "رمز عبور خود را فراموش کرده‌اید؟", color = Burgundy, fontSize = 13.sp,
+                "رمز عبور خود را فراموش کرده‌اید؟",
+                color = Color.White,
+                fontSize = 13.sp,
                 modifier = Modifier.align(Alignment.Start).padding(top = 10.dp, bottom = 18.dp)
             )
             Button(
@@ -134,21 +152,24 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                 onClick = onRegister,
                 modifier = Modifier.fillMaxWidth().height(54.dp),
                 shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Color.Transparent, contentColor = Burgundy)
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = Color(0x33FFFFFF),
+                    contentColor = Color.White
+                )
             ) {
                 Text("ثبت نام", fontSize = 17.sp, fontWeight = FontWeight.Bold)
             }
-            Text(
-                "مدیریت آسان مشتریان، سفارشات و اندازه‌ها", fontSize = 12.sp, color = Ink,
-                textAlign = TextAlign.Center, modifier = Modifier.padding(top = 24.dp, bottom = 8.dp)
-            )
         }
     }
 }
 
 @Composable
 private fun fieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Burgundy, unfocusedBorderColor = Color(0xFFD6C9C1),
-    focusedLabelColor = Burgundy, unfocusedLabelColor = Muted,
-    focusedTextColor = Ink, unfocusedTextColor = Ink, cursorColor = Burgundy
+    focusedBorderColor = Color.White,
+    unfocusedBorderColor = Color(0xCCFFFFFF),
+    focusedLabelColor = Color.White,
+    unfocusedLabelColor = Color(0xFFECECEC),
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    cursorColor = Color.White
 )
