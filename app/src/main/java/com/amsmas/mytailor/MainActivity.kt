@@ -244,9 +244,8 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                             Text("تنظیمات", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SettingsMenuItem("تنظیمات\\nکارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
-                                Spacer(Modifier.weight(1f))
-                                Spacer(Modifier.weight(1f))
+                                SettingsMenuItem("تنظیمات کارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
+                                SettingsMenuItem("پشتیبان‌گیری و بازیابی", "↻", Color(0xFFE7F3E8), Modifier.weight(1f)) { showBackupRestore = true }
                             }
                             Spacer(Modifier.height(18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
