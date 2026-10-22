@@ -168,7 +168,7 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
                         Text(if (passwordVisible) "پنهان" else "نمایش", color = Color.White)
                     }
                 },
-                colors = fieldColors(),
+                colors = loginFieldColors(),
                 shape = RoundedCornerShape(14.dp)
             )
             Text(
