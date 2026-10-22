@@ -2,7 +2,7 @@
 
 A tailoring shop management application designed to help tailors organize customer information, measurements, orders, sewing tasks, delivery dates, and payments.
 
-> **Project status:** The GitHub repository is currently empty. This README describes the project's intended direction and planned functionality; it does not claim that these features are already implemented.
+> **Project status:** An initial native Android login-screen prototype is now included. Account authentication, registration, password recovery, and the broader shop-management features are not connected or implemented yet.
 
 ## Project goals
 
