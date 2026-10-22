@@ -187,6 +187,7 @@ private fun TailorHome(onLogout: () -> Unit, onAddOrder: () -> Unit) {
                         )
                     } else if (showTailorForm) {
                         RegisterTailorForm(
+                            availableSkills = shopSkills.map { it.name },
                             onBack = { showTailorForm = false },
                             onSave = { record ->
                                 registeredTailors = registeredTailors + record
@@ -276,11 +277,10 @@ private fun RegisterSkillsForm(
 }
 
 @Composable
-private fun RegisterTailorForm(onBack: () -> Unit, onSave: (TailorRecord) -> Unit) {
+private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit, onSave: (TailorRecord) -> Unit) {
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
-    val skillOptions = listOf("اندازه‌گیری", "برش‌کاری", "دوخت", "الگوسازی", "گلدوزی", "اتو و تکمیل", "تعمیر و تغییر لباس")
     var selectedSkills by remember { mutableStateOf(setOf<String>()) }
     var error by remember { mutableStateOf(false) }
 
@@ -294,7 +294,10 @@ private fun RegisterTailorForm(onBack: () -> Unit, onSave: (TailorRecord) -> Uni
         OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2)
         Spacer(Modifier.height(18.dp))
         Text("در کدام بخش‌های خیاطی مهارت دارد؟", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-        skillOptions.forEach { skill ->
+        if (availableSkills.isEmpty()) {
+            Text("ابتدا در تنظیمات بخش «ثبت مهارت‌ها» مهارت‌های کارگاه را تعریف کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 8.dp))
+        }
+        availableSkills.forEach { skill ->
             Row(Modifier.fillMaxWidth().clickable { selectedSkills = if (skill in selectedSkills) selectedSkills - skill else selectedSkills + skill }.padding(vertical = 1.dp), verticalAlignment = Alignment.CenterVertically) {
                 Checkbox(checked = skill in selectedSkills, onCheckedChange = { checked -> selectedSkills = if (checked) selectedSkills + skill else selectedSkills - skill })
                 Text(skill, color = TextDark, fontSize = 14.sp)
