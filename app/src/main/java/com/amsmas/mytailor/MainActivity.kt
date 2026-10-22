@@ -205,6 +205,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     var showSkillsForm by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
+    var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
     LaunchedEffect(database) {
@@ -219,7 +220,12 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
-                    if (showBackupRestore) {
+                    if (selectedSettingsCategory != null) {
+                        SettingsCategoryScreen(
+                            title = selectedSettingsCategory!!,
+                            onBack = { selectedSettingsCategory = null }
+                        )
+                    } else if (showBackupRestore) {
                         BackupRestoreScreen(onBack = { showBackupRestore = false }, onBackup = onBackup, onRestore = onRestore)
                     } else if (showWorkshopSettings) {
                         WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true })
@@ -243,9 +249,37 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                         Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
                             Text("تنظیمات", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
-                            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                SettingsMenuItem("تنظیمات کارگاه", "⚙", Color(0xFFF6E7E8), Modifier.weight(1f)) { showWorkshopSettings = true }
-                                SettingsMenuItem("پشتیبان‌گیری و بازیابی", "⟳", Color(0xFFE7F3E8), Modifier.weight(1f)) { showBackupRestore = true }
+                            val settingsItems = listOf(
+                                Triple("تنظیمات کارگاه", "⚙", "workshop"),
+                                Triple("پروفایل و معلومات کارگاه", "▣", "profile"),
+                                Triple("پشتیبان‌گیری و بازیابی", "⟳", "backup"),
+                                Triple("ظاهر برنامه", "◐", "appearance"),
+                                Triple("اعلان‌ها و یادآورها", "♧", "notifications"),
+                                Triple("امنیت و حریم خصوصی", "▣", "security"),
+                                Triple("تنظیمات عمومی", "☷", "general"),
+                                Triple("چاپ و رسیدها", "▤", "printing"),
+                                Triple("درباره و پشتیبانی", "ⓘ", "about")
+                            )
+                            settingsItems.chunked(2).forEach { rowItems ->
+                                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                                    rowItems.forEach { item ->
+                                        SettingsMenuItem(item.first, item.second, when (item.third) {
+                                            "backup" -> Color(0xFFE7F3E8)
+                                            "appearance" -> Color(0xFFE7EEF9)
+                                            "notifications" -> Color(0xFFFFF0D8)
+                                            "security" -> Color(0xFFF6E7E8)
+                                            else -> Color(0xFFF1E9E4)
+                                        }, Modifier.weight(1f)) {
+                                            when (item.third) {
+                                                "workshop" -> showWorkshopSettings = true
+                                                "backup" -> showBackupRestore = true
+                                                else -> selectedSettingsCategory = item.first
+                                            }
+                                        }
+                                    }
+                                    if (rowItems.size == 1) Spacer(Modifier.weight(1f))
+                                }
+                                Spacer(Modifier.height(10.dp))
                             }
                             Spacer(Modifier.height(18.dp))
                             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -317,6 +351,34 @@ private fun BackupRestoreScreen(onBack: () -> Unit, onBackup: () -> Unit, onRest
         SettingsMenuItem("بازیابی از فایل", "⇩", Color(0xFFF6E7E8), Modifier.fillMaxWidth().height(122.dp)) { onRestore() }
         Spacer(Modifier.height(12.dp))
         Text("توجه: بازیابی، فهرست مهارت‌ها و خیاطان فعلی را با معلومات موجود در فایل جایگزین می‌کند.", color = Color(0xFF9A4B16), fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
+    }
+}
+
+@Composable
+private fun SettingsCategoryScreen(title: String, onBack: () -> Unit) {
+    val descriptionAndItems = when (title) {
+        "پروفایل و معلومات کارگاه" -> "هویت و معلومات تماس کارگاه" to listOf("نام و لوگوی کارگاه", "نام مالک و شماره تماس", "آدرس کارگاه", "ویرایش پروفایل")
+        "ظاهر برنامه" -> "شخصی‌سازی شکل و زبان برنامه" to listOf("حالت روشن / تاریک / مطابق سیستم", "زبان: دری، فارسی، English", "اندازه فونت", "رنگ برنامه")
+        "اعلان‌ها و یادآورها" -> "کنترل یادآوری‌های مهم" to listOf("یادآوری تحویل سفارش", "مانده حساب پرداخت‌نشده مشتریان", "یادآوری پرداخت معاش کارمندان", "خلاصه روزانه کارگاه", "فعال یا غیرفعال‌کردن اعلان‌ها")
+        "امنیت و حریم خصوصی" -> "محافظت از معلومات کارگاه" to listOf("قفل برنامه با PIN یا اثر انگشت", "تغییر رمز عبور حساب", "قفل خودکار پس از بی‌کاری", "مدیریت اجازه‌های برنامه")
+        "تنظیمات عمومی" -> "تنظیم رفتار عمومی برنامه" to listOf("واحد پول پیش‌فرض: AFN، USD و غیره", "قالب تاریخ و نوع تقویم", "وضعیت پیش‌فرض سفارش", "واحد پیش‌فرض اندازه‌گیری", "تأیید پیش از حذف معلومات")
+        "چاپ و رسیدها" -> "تنظیم اسناد مشتریان" to listOf("سرصفحه و پاصفحه رسید", "نمایش لوگوی کارگاه روی رسید", "اندازه کاغذ", "زبان چاپ", "قالب پیش‌فرض رسید")
+        else -> "معلومات برنامه و راه‌های دریافت کمک" to listOf("نام و نسخه برنامه", "بررسی به‌روزرسانی", "راهنما و دستور استفاده", "تماس با پشتیبانی", "سیاست حریم خصوصی")
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text(title, color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text(descriptionAndItems.first, color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp, bottom = 16.dp))
+        descriptionAndItems.second.forEach { item ->
+            Row(
+                Modifier.fillMaxWidth().padding(bottom = 8.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 15.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(item, color = TextDark, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text("›", color = Burgundy, fontSize = 22.sp)
+            }
+        }
+        Text("بعضی از این گزینه‌ها فعلاً فقط به‌صورت منو نمایش داده می‌شوند و عملکرد آن‌ها در مرحله بعد پیاده‌سازی می‌شود.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 10.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
     }
 }
