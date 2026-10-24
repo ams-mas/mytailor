@@ -51,6 +51,7 @@ private val TextDark = Color(0xFF302627)
 private val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
+private data class GarmentModel(val name: String, val measurements: List<String>)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
@@ -268,6 +269,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
+    var showGarmentModels by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
     var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
@@ -294,7 +296,9 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                     } else if (showBackupRestore) {
                         BackupRestoreScreen(onBack = { showBackupRestore = false }, onBackup = onBackup, onRestore = onRestore)
                     } else if (showWorkshopSettings) {
-                        WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true })
+                        WorkshopSettingsScreen(onBack = { showWorkshopSettings = false }, onRegisterTailor = { showWorkshopSettings = false; showTailorForm = true }, onRegisterSkills = { showWorkshopSettings = false; showSkillsForm = true }, onGarmentModels = { showWorkshopSettings = false; showGarmentModels = true })
+                    } else if (showGarmentModels) {
+                        GarmentModelsScreen(onBack = { showGarmentModels = false })
                     } else if (showSkillsForm) {
                         RegisterSkillsForm(
                             initialSkills = shopSkills,
@@ -450,17 +454,106 @@ private fun SettingsCategoryScreen(title: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun WorkshopSettingsScreen(onBack: () -> Unit, onRegisterTailor: () -> Unit, onRegisterSkills: () -> Unit) {
+private fun WorkshopSettingsScreen(onBack: () -> Unit, onRegisterTailor: () -> Unit, onRegisterSkills: () -> Unit, onGarmentModels: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("تنظیمات کارگاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("مدیریت خیاطان و مهارت‌های مورد نیاز کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
+        Text("مدیریت خیاطان، مهارت‌ها و مدل‌های لباس کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
             SettingsMenuItem("ثبت خیاط", "♙", Color(0xFFE7EEF9), Modifier.weight(1f), onRegisterTailor)
             SettingsMenuItem("ثبت مهارت‌ها", "✂", Color(0xFFE7F3E8), Modifier.weight(1f), onRegisterSkills)
-            Spacer(Modifier.weight(1f))
         }
+        Spacer(Modifier.height(10.dp))
+        SettingsMenuItem("مدل‌های لباس و اندازه‌گیری", "📏", Color(0xFFF6E7E8), Modifier.fillMaxWidth(), onGarmentModels)
         Spacer(Modifier.height(22.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
+    }
+}
+
+@Composable
+private fun GarmentModelsScreen(onBack: () -> Unit) {
+    var models by remember {
+        mutableStateOf(
+            listOf(
+                GarmentModel("لباس ساده مردانه", listOf("سرشانه", "قد آستین", "قد پیراهن", "دور سینه")),
+                GarmentModel("واسکت مردانه", listOf("سرشانه", "قد واسکت", "دور سینه"))
+            )
+        )
+    }
+    var selectedModel by remember { mutableStateOf(0) }
+    var modelName by remember { mutableStateOf("") }
+    var measurementName by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Text("مدل‌های لباس و اندازه‌گیری", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("برای هر مدل، اندازه‌های مخصوص همان لباس را تعریف کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
+        Text("مدل‌های موجود", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        models.forEachIndexed { index, model ->
+            Row(
+                Modifier.fillMaxWidth().padding(top = 8.dp).background(if (selectedModel == index) BurgundySoft else Color.White, RoundedCornerShape(12.dp)).clickable { selectedModel = index; message = "" }.padding(13.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Column(Modifier.weight(1f)) {
+                    Text(model.name, color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+                    Text("${model.measurements.size} اندازه تعریف شده", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                }
+                if (selectedModel == index) Text("انتخاب شده", color = Burgundy, fontSize = 11.sp)
+            }
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("افزودن مدل جدید", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        OutlinedTextField(value = modelName, onValueChange = { modelName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors())
+        Button(
+            onClick = {
+                val name = modelName.trim()
+                if (name.isBlank()) message = "لطفاً نام مدل لباس را وارد کنید."
+                else if (models.any { it.name.equals(name, ignoreCase = true) }) message = "این مدل قبلاً اضافه شده است."
+                else {
+                    models = models + GarmentModel(name, emptyList())
+                    selectedModel = models.lastIndex
+                    modelName = ""
+                    message = "مدل جدید اضافه شد."
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
+        ) { Text("افزودن مدل") }
+        Spacer(Modifier.height(20.dp))
+        Text("اندازه‌های مدل «${models.getOrNull(selectedModel)?.name.orEmpty()}»", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+        models.getOrNull(selectedModel)?.measurements?.forEach { measurement ->
+            Row(Modifier.fillMaxWidth().padding(top = 7.dp).background(Color.White, RoundedCornerShape(10.dp)).padding(horizontal = 12.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
+                Text(measurement, color = TextDark, fontSize = 14.sp, modifier = Modifier.weight(1f))
+                Text("حذف", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.clickable {
+                    val updated = models.toMutableList()
+                    updated[selectedModel] = updated[selectedModel].copy(measurements = updated[selectedModel].measurements.filterNot { it == measurement })
+                    models = updated
+                    message = ""
+                }.padding(6.dp))
+            }
+        }
+        OutlinedTextField(value = measurementName, onValueChange = { measurementName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), singleLine = true, label = { Text("نام اندازه؛ مثلاً سرشانه") }, colors = appFieldColors())
+        Button(
+            onClick = {
+                val name = measurementName.trim()
+                val model = models.getOrNull(selectedModel)
+                if (model == null) message = "ابتدا یک مدل لباس اضافه کنید."
+                else if (name.isBlank()) message = "نام اندازه را وارد کنید."
+                else if (model.measurements.any { it.equals(name, ignoreCase = true) }) message = "این اندازه قبلاً تعریف شده است."
+                else {
+                    val updated = models.toMutableList()
+                    updated[selectedModel] = model.copy(measurements = model.measurements + name)
+                    models = updated
+                    measurementName = ""
+                    message = "اندازه به مدل اضافه شد."
+                }
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
+        ) { Text("افزودن اندازه به این مدل") }
+        if (message.isNotBlank()) Text(message, color = if (message.contains("لطفاً") || message.contains("وارد") || message.contains("قبلاً")) Color(0xFFB3261E) else Burgundy, fontSize = 12.sp, modifier = Modifier.padding(top = 10.dp))
+        Text("نمونه نمایشی: تغییرات فعلاً تا زمان بسته‌شدن این صفحه نگهداری می‌شوند و هنوز در دیتابیس ذخیره نمی‌شوند.", color = Color(0xFF9A4B16), fontSize = 12.sp, modifier = Modifier.padding(top = 14.dp))
+        Spacer(Modifier.height(18.dp))
+        Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات کارگاه") }
     }
 }
 
