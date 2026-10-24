@@ -9,6 +9,9 @@ import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGesturesAfterLongPress
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.consume
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -532,25 +535,63 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
             Text("ویرایش مدل لباس", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = editName, onValueChange = { editName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors())
             Text("ترتیب اندازه‌گیری", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
-            Text("با فلش‌های بالا و پایین، ترتیب اندازه‌ها را مطابق روش کار خود تنظیم کنید؛ سپس ذخیره را بزنید.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+            Text("برای جابه‌جایی، انگشت خود را روی اندازه نگه دارید و آن را به جای دلخواه بکشید؛ سپس ذخیره را بزنید.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
+            var draggingMeasurementIndex by remember { mutableIntStateOf(-1) }
+            var dragDistancePx by remember { mutableFloatStateOf(0f) }
+            val dragThreshold = with(androidx.compose.ui.platform.LocalDensity.current) { 58.dp.toPx() }
             editMeasurements.forEachIndexed { index, measurement ->
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(end = 6.dp)) {
-                        Text("↑", color = if (index > 0) Burgundy else TextMuted.copy(alpha = 0.35f), fontSize = 20.sp, modifier = Modifier.clickable(enabled = index > 0) {
-                            val updated = editMeasurements.toMutableList()
-                            val item = updated.removeAt(index)
-                            updated.add(index - 1, item)
-                            editMeasurements = updated
-                            message = ""
-                        }.padding(horizontal = 5.dp, vertical = 1.dp))
-                        Text("↓", color = if (index < editMeasurements.lastIndex) Burgundy else TextMuted.copy(alpha = 0.35f), fontSize = 20.sp, modifier = Modifier.clickable(enabled = index < editMeasurements.lastIndex) {
-                            val updated = editMeasurements.toMutableList()
-                            val item = updated.removeAt(index)
-                            updated.add(index + 1, item)
-                            editMeasurements = updated
-                            message = ""
-                        }.padding(horizontal = 5.dp, vertical = 1.dp))
-                    }
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .background(
+                            if (draggingMeasurementIndex == index) BurgundySoft else Color.Transparent,
+                            RoundedCornerShape(10.dp)
+                        )
+                        .pointerInput(index, editMeasurements) {
+                            detectDragGesturesAfterLongPress(
+                                onDragStart = {
+                                    draggingMeasurementIndex = index
+                                    dragDistancePx = 0f
+                                },
+                                onDragEnd = {
+                                    draggingMeasurementIndex = -1
+                                    dragDistancePx = 0f
+                                },
+                                onDragCancel = {
+                                    draggingMeasurementIndex = -1
+                                    dragDistancePx = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragDistancePx += dragAmount.y
+                                    val currentIndex = draggingMeasurementIndex
+                                    if (currentIndex >= 0 && dragDistancePx > dragThreshold && currentIndex < editMeasurements.lastIndex) {
+                                        val updated = editMeasurements.toMutableList()
+                                        val item = updated.removeAt(currentIndex)
+                                        updated.add(currentIndex + 1, item)
+                                        editMeasurements = updated
+                                        draggingMeasurementIndex = currentIndex + 1
+                                        dragDistancePx = 0f
+                                    } else if (currentIndex > 0 && dragDistancePx < -dragThreshold) {
+                                        val updated = editMeasurements.toMutableList()
+                                        val item = updated.removeAt(currentIndex)
+                                        updated.add(currentIndex - 1, item)
+                                        editMeasurements = updated
+                                        draggingMeasurementIndex = currentIndex - 1
+                                        dragDistancePx = 0f
+                                    }
+                                }
+                            )
+                        }
+                        .padding(vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Text(
+                        "⠿",
+                        color = Burgundy,
+                        fontSize = 25.sp,
+                        modifier = Modifier.padding(horizontal = 10.dp)
+                    )
                     OutlinedTextField(
                         value = measurement,
                         onValueChange = { value -> editMeasurements = editMeasurements.toMutableList().also { it[index] = value }; message = "" },
