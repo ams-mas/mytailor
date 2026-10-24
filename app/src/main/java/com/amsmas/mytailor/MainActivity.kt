@@ -472,6 +472,7 @@ private fun WorkshopSettingsScreen(onBack: () -> Unit, onRegisterTailor: () -> U
 @Composable
 private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
     val sampleModels = listOf(
+        GarmentModel("پیراهن‌تنبان مردانه", listOf("دور سینه", "دور کمر", "دور باسن", "قد پیراهن", "سرشانه", "قد آستین", "دور بازو", "دور یخن", "قد تنبان", "دور دم‌پا", "فاق تنبان")),
         GarmentModel("لباس ساده مردانه", listOf("سرشانه", "قد آستین", "قد پیراهن", "دور سینه")),
         GarmentModel("واسکت مردانه", listOf("سرشانه", "قد واسکت", "دور سینه"))
     )
