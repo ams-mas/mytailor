@@ -547,7 +547,7 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
                             if (draggingMeasurementIndex == index) BurgundySoft else Color.Transparent,
                             RoundedCornerShape(10.dp)
                         )
-                        .pointerInput(index, editMeasurements) {
+                        .pointerInput(index) {
                             detectDragGesturesAfterLongPress(
                                 onDragStart = {
                                     draggingMeasurementIndex = index
