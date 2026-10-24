@@ -34,7 +34,7 @@ internal fun DeliveryOrdersScreen(onAddOrder: () -> Unit) {
     val today = Calendar.getInstance()
     val weekStart = (today.clone() as Calendar).apply {
         val day = get(Calendar.DAY_OF_WEEK)
-        val daysFromSaturday = (day + 1) % 7
+        val daysFromSaturday = day % 7
         add(Calendar.DAY_OF_YEAR, -daysFromSaturday)
     }
 
