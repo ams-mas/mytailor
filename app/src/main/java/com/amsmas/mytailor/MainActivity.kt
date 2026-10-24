@@ -43,8 +43,8 @@ import androidx.compose.ui.unit.sp
 import coil.compose.AsyncImage
 
 // MyTailor unified theme: burgundy, warm ivory, and muted rose.
-private val Burgundy = Color(0xFF702027)
-private val BurgundyDark = Color(0xFF55191E)
+private val Burgundy: Color = Color(0xFF702027)
+private val BurgundyDark: Color = Color(0xFF55191E)
 private val BurgundySoft = Color(0xFFF4E7E8)
 private val PageBg = Color(0xFFFAF7F4)
 private val CardBg = Color(0xFFFFFFFF)
