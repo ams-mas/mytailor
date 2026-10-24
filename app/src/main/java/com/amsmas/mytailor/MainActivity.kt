@@ -531,9 +531,26 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
             Spacer(Modifier.height(18.dp))
             Text("ویرایش مدل لباس", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             OutlinedTextField(value = editName, onValueChange = { editName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors())
-            Text("نام اندازه‌ها", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+            Text("ترتیب اندازه‌گیری", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
+            Text("با فلش‌های بالا و پایین، ترتیب اندازه‌ها را مطابق روش کار خود تنظیم کنید؛ سپس ذخیره را بزنید.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
             editMeasurements.forEachIndexed { index, measurement ->
                 Row(verticalAlignment = Alignment.CenterVertically) {
+                    Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.padding(end = 6.dp)) {
+                        Text("↑", color = if (index > 0) Burgundy else TextMuted.copy(alpha = 0.35f), fontSize = 20.sp, modifier = Modifier.clickable(enabled = index > 0) {
+                            val updated = editMeasurements.toMutableList()
+                            val item = updated.removeAt(index)
+                            updated.add(index - 1, item)
+                            editMeasurements = updated
+                            message = ""
+                        }.padding(horizontal = 5.dp, vertical = 1.dp))
+                        Text("↓", color = if (index < editMeasurements.lastIndex) Burgundy else TextMuted.copy(alpha = 0.35f), fontSize = 20.sp, modifier = Modifier.clickable(enabled = index < editMeasurements.lastIndex) {
+                            val updated = editMeasurements.toMutableList()
+                            val item = updated.removeAt(index)
+                            updated.add(index + 1, item)
+                            editMeasurements = updated
+                            message = ""
+                        }.padding(horizontal = 5.dp, vertical = 1.dp))
+                    }
                     OutlinedTextField(
                         value = measurement,
                         onValueChange = { value -> editMeasurements = editMeasurements.toMutableList().also { it[index] = value }; message = "" },
@@ -542,7 +559,7 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
                         label = { Text("اندازه ${index + 1}") },
                         colors = appFieldColors()
                     )
-                    Text("حذف", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.clickable { editMeasurements = editMeasurements.filterIndexed { itemIndex, _ -> itemIndex != index } }.padding(start = 10.dp))
+                    Text("حذف", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.clickable { editMeasurements = editMeasurements.filterIndexed { itemIndex, _ -> itemIndex != index }; message = "" }.padding(start = 8.dp))
                 }
             }
             OutlinedTextField(value = newMeasurementName, onValueChange = { newMeasurementName = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("افزودن اندازه جدید") }, colors = appFieldColors())
