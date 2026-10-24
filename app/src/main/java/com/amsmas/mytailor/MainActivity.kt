@@ -476,7 +476,14 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
         GarmentModel("لباس ساده مردانه", listOf("سرشانه", "قد آستین", "قد پیراهن", "دور سینه")),
         GarmentModel("واسکت مردانه", listOf("سرشانه", "قد واسکت", "دور سینه"))
     )
-    var models by remember { mutableStateOf(database.getGarmentModels().ifEmpty { sampleModels.also { database.saveGarmentModels(it) } }) }
+    val storedModels = database.getGarmentModels()
+    val initialModels = if (storedModels.isEmpty()) {
+        sampleModels
+    } else {
+        storedModels + sampleModels.filter { sample -> storedModels.none { it.name.equals(sample.name, ignoreCase = true) } }
+    }
+    if (initialModels != storedModels) database.saveGarmentModels(initialModels)
+    var models by remember { mutableStateOf(initialModels) }
     var selectedModel by remember { mutableIntStateOf(0) }
     var newModelName by remember { mutableStateOf("") }
     var newMeasurementName by remember { mutableStateOf("") }
