@@ -17,10 +17,13 @@ internal class LocalDatabase(context: Context) :
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE workshop_skills (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE)")
         db.execSQL("CREATE TABLE tailors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT NOT NULL, address TEXT NOT NULL DEFAULT '', skills_json TEXT NOT NULL)")
+        db.execSQL("CREATE TABLE garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
-        // Future database changes should use migrations so existing user data is preserved.
+        if (oldVersion < 2) {
+            db.execSQL("CREATE TABLE IF NOT EXISTS garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
+        }
     }
 
     fun getSkills(): List<String> {
@@ -39,6 +42,37 @@ internal class LocalDatabase(context: Context) :
             skills.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }.forEach { name ->
                 val values = ContentValues().apply { put("name", name) }
                 db.insertOrThrow("workshop_skills", null, values)
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+    }
+
+    fun getGarmentModels(): List<GarmentModel> {
+        val result = mutableListOf<GarmentModel>()
+        readableDatabase.rawQuery("SELECT name, measurements_json FROM garment_models ORDER BY id", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val measurements = JSONArray(cursor.getString(1))
+                result.add(GarmentModel(cursor.getString(0), (0 until measurements.length()).map { measurements.getString(it) }))
+            }
+        }
+        return result
+    }
+
+    fun saveGarmentModels(models: List<GarmentModel>) {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.delete("garment_models", null, null)
+            models.forEach { model ->
+                val name = model.name.trim()
+                if (name.isNotBlank()) {
+                    db.insertOrThrow("garment_models", null, ContentValues().apply {
+                        put("name", name)
+                        put("measurements_json", JSONArray(model.measurements.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }).toString())
+                    })
+                }
             }
             db.setTransactionSuccessful()
         } finally {
@@ -84,6 +118,14 @@ internal class LocalDatabase(context: Context) :
             })
         }
         root.put("tailors", tailorsJson)
+        val modelsJson = JSONArray()
+        getGarmentModels().forEach { model ->
+            modelsJson.put(JSONObject().apply {
+                put("name", model.name)
+                put("measurements", JSONArray(model.measurements))
+            })
+        }
+        root.put("garmentModels", modelsJson)
         return root.toString(2)
     }
 
@@ -93,6 +135,12 @@ internal class LocalDatabase(context: Context) :
         require(root.optInt("version", -1) == 1) { "نسخه این فایل پشتیبان پشتیبانی نمی‌شود." }
         val skillsArray = root.getJSONArray("skills")
         val tailorsArray = root.getJSONArray("tailors")
+        val modelsArray = root.optJSONArray("garmentModels") ?: JSONArray()
+        val garmentModels = (0 until modelsArray.length()).map { i ->
+            val item = modelsArray.getJSONObject(i)
+            val measurements = item.optJSONArray("measurements") ?: JSONArray()
+            GarmentModel(item.getString("name"), (0 until measurements.length()).map { measurements.getString(it) })
+        }
         val skills = (0 until skillsArray.length()).map { skillsArray.getString(it).trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
         val tailors = (0 until tailorsArray.length()).map { i ->
             val item = tailorsArray.getJSONObject(i)
@@ -110,6 +158,7 @@ internal class LocalDatabase(context: Context) :
         try {
             db.delete("tailors", null, null)
             db.delete("workshop_skills", null, null)
+            db.delete("garment_models", null, null)
             skills.forEach { name ->
                 db.insertOrThrow("workshop_skills", null, ContentValues().apply { put("name", name) })
             }
@@ -121,6 +170,12 @@ internal class LocalDatabase(context: Context) :
                     put("skills_json", JSONArray(tailor.skills).toString())
                 })
             }
+            garmentModels.forEach { model ->
+                db.insertOrThrow("garment_models", null, ContentValues().apply {
+                    put("name", model.name)
+                    put("measurements_json", JSONArray(model.measurements).toString())
+                })
+            }
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
@@ -129,6 +184,6 @@ internal class LocalDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "mytailor_local.db"
-        private const val DATABASE_VERSION = 1
+        private const val DATABASE_VERSION = 2
     }
 }
