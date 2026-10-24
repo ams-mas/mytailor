@@ -51,7 +51,7 @@ private val TextDark = Color(0xFF302627)
 private val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
-private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
+private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
@@ -282,6 +282,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
             when (selected) {
                 MainTab.HOME -> DashboardContent()
                 MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
+                MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
                 MainTab.SETTINGS -> {
