@@ -280,7 +280,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when (selected) {
-                MainTab.HOME -> DashboardContent()
+                MainTab.HOME -> DashboardContent(onOpenDeliveries = { selected = MainTab.DELIVERY })
                 MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
                 MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
@@ -549,32 +549,52 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 }
 
 @Composable
-private fun DashboardContent() {
+private fun DashboardContent(onOpenDeliveries: () -> Unit) {
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-        Row(Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Burgundy, BurgundyDark))).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Burgundy, BurgundyDark))).padding(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
             Text("☰", color = Color.White, fontSize = 22.sp)
             Text("خیاطی من", color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
             Text("♧", color = Color.White, fontSize = 22.sp)
         }
-        Column(Modifier.padding(horizontal = 12.dp, vertical = 12.dp)) {
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                StatCard("۱۲", "سفارش جدید", "▣", Color(0xFFEAF1FC), Color(0xFF2870D8), Modifier.weight(1f))
-                StatCard("۲۵", "کل سفارشات", "▤", Color(0xFFFFF0EE), Color(0xFFD85B5B), Modifier.weight(1f))
+        Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp)) {
+            Text("گزارش کوتاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("برنامه تحویل لباس‌ها", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
+            DeliveryReportCard("امروز", "سفارش‌هایی که امروز باید تحویل بدهی", "۰", Color(0xFF702027), Modifier.fillMaxWidth(), onOpenDeliveries)
+            Spacer(Modifier.height(10.dp))
+            DeliveryReportCard("فردا", "سفارش‌هایی که فردا موعد تحویل دارند", "۰", Color(0xFFB7791F), Modifier.fillMaxWidth(), onOpenDeliveries)
+            Spacer(Modifier.height(10.dp))
+            DeliveryReportCard("تا آخر هفته", "مجموع سفارش‌های موعد تحویل این هفته", "۰", Color(0xFF2870D8), Modifier.fillMaxWidth(), onOpenDeliveries)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onOpenDeliveries, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
+                Text("مشاهده برنامه تحویل", fontWeight = FontWeight.Bold)
             }
-            Spacer(Modifier.height(9.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp)) {
-                StatCard("۱۸", "در حال کار", "✂", Color(0xFFFFF5DF), Color(0xFFE3A01A), Modifier.weight(1f))
-                StatCard("۷", "تحویل شد", "✓", Color(0xFFEAF6EB), Color(0xFF21824B), Modifier.weight(1f))
-            }
-            Row(Modifier.fillMaxWidth().padding(top = 21.dp, bottom = 12.dp), verticalAlignment = Alignment.CenterVertically) {
-                Text("سفارشات اخیر", fontSize = 17.sp, fontWeight = FontWeight.Bold, color = TextDark, modifier = Modifier.weight(1f))
-                Text("مشاهده همه ←", color = Color(0xFF3973D7), fontSize = 12.sp)
-            }
-            RecentOrder("علی احمدی", "کت و شلوار", "۱۴۰۵/۰۷/۲۸", "در حال کار", "👔", Color(0xFFFFE7A8))
-            RecentOrder("فاطمه حسینی", "مانتو", "۱۴۰۵/۰۷/۲۷", "جدید", "🧥", Color(0xFFDCEAFF))
-            RecentOrder("محمد کریمی", "پیراهن", "۱۴۰۵/۰۷/۲۶", "تحویل شد", "👔", Color(0xFFD8F0D9))
-            RecentOrder("زهرا محمدی", "لباس مجلسی", "۱۴۰۵/۰۷/۲۵", "در حال کار", "👗", Color(0xFFFFE7A8))
-            Spacer(Modifier.height(75.dp))
+            Text("تعدادها فعلاً نمونهٔ خالی هستند؛ پس از اتصال سفارش‌ها به دیتابیس، خودکار محاسبه می‌شوند.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+            Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun DeliveryReportCard(
+    title: String,
+    description: String,
+    count: String,
+    accent: Color,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit
+) {
+    Row(modifier = modifier.background(Color.White, RoundedCornerShape(14.dp)).clickable(onClick = onClick).padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(description, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(count, color = accent, fontSize = 27.sp, fontWeight = FontWeight.ExtraBold)
+            Text("سفارش", color = TextMuted, fontSize = 11.sp)
         }
     }
 }
