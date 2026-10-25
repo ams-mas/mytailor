@@ -19,11 +19,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
-import java.util.Calendar
 import java.util.Locale
 
 private val BlueprintPayTypes = listOf("daily", "weekly", "monthly", "piece_rate")
@@ -33,7 +31,7 @@ private fun payTypeLabel(type: String): String = when (type) {
     "monthly" -> "ماهانه"
     else -> "به‌ازای هر مرحله"
 }
-private fun blueprintMoney(value: Double): String = String.format(java.util.Locale.US, "%,.0f", value)
+private fun blueprintMoney(value: Double): String = String.format(Locale.US, "%,.0f", value)
 private fun validIsoDate(value: String): Boolean = runCatching {
     val f = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { isLenient = false }
     f.parse(value) != null && f.format(f.parse(value)!!) == value
@@ -41,7 +39,6 @@ private fun validIsoDate(value: String): Boolean = runCatching {
 
 @Composable
 internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit) {
-    val revision = database.revision.intValue
     var editingId by remember { mutableIntStateOf(0) }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -343,7 +340,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
         JalaliDateInput(attendanceDate, { attendanceDate = it; message = "" }, "تاریخ حاضری")
         Button(onClick = onOpenReports, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark)) { Text("گزارش‌های حاضری") }
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حاضر: ${presentCount} از ${workers.size}", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("حاضر: $presentCount از ${workers.size}", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(if(workerType=="daily") "فقط کارمندانی نمایش داده می‌شوند که تاریخ انتخاب‌شده در مدت قراردادشان باشد." else "برای کارمندان ماهانه وضعیت هر روز ثبت می‌شود.", color = TextMuted, fontSize = 11.sp)
         }
         if(message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
