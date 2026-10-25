@@ -1,6 +1,11 @@
 package com.amsmas.mytailor
 
 import android.os.Bundle
+import android.content.Context
+import android.print.PrintAttributes
+import android.print.PrintManager
+import android.webkit.WebView
+import android.webkit.WebViewClient
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -276,6 +281,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
     var showOrderForm by remember { mutableStateOf(false) }
+    var savedOrderForReceipt by remember { mutableStateOf<TailorOrder?>(null) }
     var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
@@ -286,7 +292,8 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { showOrderForm = false; selected = MainTab.ORDERS })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(this, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
+                showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
                 selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
                 selected == MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
@@ -743,7 +750,7 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 
 
 @Composable
-private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: () -> Unit) {
+private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: (TailorOrder) -> Unit) {
     var customerName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
@@ -843,9 +850,10 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 total <= 0 -> message = "قیمت را وارد کنید."
                 payment < 0 || payment > total -> message = "مقدار پرداخت نباید از قیمت بیشتر باشد."
                 else -> {
+                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment)
                     runCatching {
-                        database.addOrder(TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment))
-                    }.onSuccess { onSave() }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
+                        database.addOrder(order)
+                    }.onSuccess { onSave(order) }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
                 }
             }
         }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ثبت سفارش", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
@@ -859,6 +867,81 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
             onDateSelected = { selected -> deliveryDate = selected; showDatePicker = false }
         )
     }
+}
+
+
+@Composable
+private fun OrderSuccessScreen(order: TailorOrder, onPrint: () -> Unit, onDone: () -> Unit) {
+    val remaining = (order.price - order.paid).coerceAtLeast(0.0)
+    Column(Modifier.fillMaxSize().background(PageBg).verticalScroll(rememberScrollState()).padding(22.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
+        Box(Modifier.size(82.dp).background(Color(0xFFE4F4E8), CircleShape), contentAlignment = Alignment.Center) {
+            Text("✓", color = Color(0xFF237342), fontSize = 48.sp, fontWeight = FontWeight.Bold)
+        }
+        Spacer(Modifier.height(18.dp))
+        Text("سفارش با موفقیت ثبت شد", color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+        Text("رسید سفارش را می‌توانید چاپ کنید.", color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(top = 8.dp, bottom = 22.dp))
+        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(18.dp)) {
+            ReceiptRow("مشتری", order.customerName)
+            ReceiptRow("شماره تماس", order.phone.ifBlank { "—" })
+            ReceiptRow("مدل لباس", order.garmentModel)
+            ReceiptRow("تاریخ تحویل", order.deliveryDate)
+            ReceiptRow("قیمت", formatReceiptAmount(order.price))
+            ReceiptRow("پرداخت", formatReceiptAmount(order.paid))
+            ReceiptRow("باقیمانده", formatReceiptAmount(remaining))
+        }
+        Spacer(Modifier.height(22.dp))
+        Button(onClick = onPrint, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("چاپ رسید", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(10.dp))
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("پایان") }
+    }
+}
+
+@Composable
+private fun ReceiptRow(label: String, value: String) {
+    Row(Modifier.fillMaxWidth().padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+        Text(label, color = TextMuted, fontSize = 14.sp)
+        Text(value, color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+    }
+}
+
+private fun formatReceiptAmount(value: Double): String =
+    (if (value % 1.0 == 0.0) value.toLong().toString() else value.toString()).toPersianDigits()
+
+private fun escapeReceiptHtml(value: String): String =
+    value.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
+
+private fun printOrderReceipt(context: Context, order: TailorOrder) {
+    val remaining = (order.price - order.paid).coerceAtLeast(0.0)
+    val html = """
+        <html><head><meta charset="utf-8"><style>
+        body{font-family:sans-serif;direction:rtl;padding:28px;color:#302627}
+        h1{text-align:center;color:#702027;font-size:24px}
+        .sub{text-align:center;color:#7D7070;margin-bottom:24px}
+        table{width:100%;border-collapse:collapse}td{padding:12px 8px;border-bottom:1px solid #D9C6C5}
+        td:first-child{color:#7D7070;width:38%}.total{font-weight:bold;color:#702027}
+        .footer{text-align:center;margin-top:30px;color:#7D7070;font-size:12px}
+        </style></head><body>
+        <h1>خیاطی من</h1><div class="sub">رسید ثبت سفارش</div>
+        <table>
+        <tr><td>نام مشتری</td><td>${escapeReceiptHtml(order.customerName)}</td></tr>
+        <tr><td>شماره تماس</td><td>${escapeReceiptHtml(order.phone.ifBlank { "—" })}</td></tr>
+        <tr><td>مدل لباس</td><td>${escapeReceiptHtml(order.garmentModel)}</td></tr>
+        <tr><td>تاریخ تحویل</td><td>${escapeReceiptHtml(order.deliveryDate)}</td></tr>
+        <tr><td>قیمت</td><td>${formatReceiptAmount(order.price)}</td></tr>
+        <tr><td>پرداخت</td><td>${formatReceiptAmount(order.paid)}</td></tr>
+        <tr class="total"><td>باقیمانده</td><td>${formatReceiptAmount(remaining)}</td></tr>
+        </table><div class="footer">با تشکر از اعتماد شما</div>
+        </body></html>
+    """.trimIndent()
+    val webView = WebView(context)
+    webView.settings.defaultTextEncodingName = "UTF-8"
+    webView.webViewClient = object : WebViewClient() {
+        override fun onPageFinished(view: WebView, url: String?) {
+            val printManager = context.getSystemService(Context.PRINT_SERVICE) as PrintManager
+            printManager.print("MyTailor-Receipt", view.createPrintDocumentAdapter("رسید سفارش"), PrintAttributes.Builder().setMediaSize(PrintAttributes.MediaSize.ISO_A4).build())
+        }
+    }
+    webView.loadDataWithBaseURL(null, html, "text/HTML", "UTF-8", null)
 }
 
 @Composable
