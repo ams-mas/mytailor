@@ -1351,7 +1351,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 } else {
                     confirmCustomerDelete = false
                 }
-            }) { Text("بله، حذف شود", color = Color(0xFFB33A32)) },
+            }) { Text("بله، حذف شود", color = Color(0xFFB33A32)) } },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmCustomerDelete = false }) { Text("انصراف") } }
         )
     }
