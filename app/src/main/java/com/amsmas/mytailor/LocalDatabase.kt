@@ -29,7 +29,7 @@ internal class LocalDatabase(context: Context) :
             db.execSQL("CREATE TABLE IF NOT EXISTS garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
         }
         if (oldVersion < 3) createOrdersTable(db)
-        if (oldVersion < 4) db.execSQL("ALTER TABLE orders ADD COLUMN registered_at TEXT NOT NULL DEFAULT ''")
+        if (oldVersion >= 3 && oldVersion < 4) db.execSQL("ALTER TABLE orders ADD COLUMN registered_at TEXT NOT NULL DEFAULT ''")
     }
 
     fun getSkills(): List<String> {
