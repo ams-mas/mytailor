@@ -74,7 +74,7 @@ internal data class TailorRecord(val name: String, val phone: String, val addres
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
 internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
-private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), SETTINGS("تنظیمات", "⚙") }
+private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), FINANCE("مالی", "؋"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
@@ -313,6 +313,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
                 selected == MainTab.REPORTS -> ReportsScreen(database = database)
+                selected == MainTab.FINANCE -> FinanceScreen(database = database)
                 selected == MainTab.SETTINGS -> {
                     if (selectedSettingsCategory != null) {
                         SettingsCategoryScreen(
@@ -436,6 +437,68 @@ private fun ReportsScreen(database: LocalDatabase) {
         ReportRow("خدمات و مهارت‌ها", skills.size.toString(), "مهارت‌های تعریف‌شده")
         ReportRow("مجموع قیمت سفارشات", String.format(java.util.Locale.US, "%,.0f افغانی", financial.first), "ارزش تمام سفارشات")
         ReportRow("باقی‌داری مشتریان", String.format(java.util.Locale.US, "%,.0f افغانی", financial.second), "مبلغ باقی‌مانده برای دریافت")
+    }
+}
+
+
+@Composable
+private fun FinanceScreen(database: LocalDatabase) {
+    val revision = database.revision.intValue
+    var period by remember { mutableStateOf("week") }
+    var startDate by remember { mutableStateOf("") }
+    var endDate by remember { mutableStateOf("") }
+    val income = remember(revision, period, startDate, endDate) {
+        database.getIncomeForPeriod(period, startDate, endDate)
+    }
+    val debtors = remember(revision) { database.getDebtCustomers() }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("بخش مالی", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("درآمد و قرض‌داران کارگاه", color = TextMuted, fontSize = 13.sp)
+        Text("نمایش درآمد بر اساس", color = TextDark, fontWeight = FontWeight.SemiBold)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("week" to "هفته", "month" to "ماه", "year" to "سال", "today" to "امروز", "custom" to "بازه").forEach { (key, label) ->
+                Column(
+                    Modifier.weight(1f)
+                        .background(if (period == key) Burgundy else Color.White, RoundedCornerShape(10.dp))
+                        .clickable { period = key }
+                        .padding(vertical = 10.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(label, color = if (period == key) Color.White else TextDark, fontSize = 12.sp)
+                }
+            }
+        }
+        if (period == "custom") {
+            OutlinedTextField(value = startDate, onValueChange = { startDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true)
+            OutlinedTextField(value = endDate, onValueChange = { endDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true)
+            Text("تاریخ را به شکل 2026-10-24 وارد کنید.", color = TextMuted, fontSize = 12.sp)
+        }
+        Column(Modifier.fillMaxWidth().background(BurgundySoft, RoundedCornerShape(16.dp)).padding(18.dp)) {
+            Text("درآمد دریافت‌شده", color = BurgundyDark, fontSize = 15.sp)
+            Text(String.format(java.util.Locale.US, "%,.0f افغانی", income), color = BurgundyDark, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
+            Text("شامل پیش‌پرداخت و پرداخت‌های ثبت‌شده در سفارشات", color = TextMuted, fontSize = 12.sp)
+        }
+        Text("مشتریان قرض‌دار (${debtors.size})", color = BurgundyDark, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
+        if (debtors.isEmpty()) {
+            Text("در حال حاضر مشتری قرض‌دار وجود ندارد.", color = TextMuted)
+        } else {
+            debtors.forEach { (customer, debt) ->
+                Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                    Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(customer.name, color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
+                            Text(customer.phone, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+                            Text("سفارش‌ها: ${customer.orderCount}", color = TextMuted, fontSize = 12.sp)
+                        }
+                        Text(String.format(java.util.Locale.US, "%,.0f افغانی", debt), color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                    }
+                }
+            }
+        }
     }
 }
 
