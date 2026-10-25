@@ -129,6 +129,7 @@ internal class LocalDatabase(context: Context) :
             put("remaining", (order.price - order.deposit - order.paid).coerceAtLeast(0.0))
             put("status", "incomplete")
         })
+        notifyChanged()
     }
 
     /**
@@ -188,6 +189,7 @@ internal class LocalDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+        if (added > 0) notifyChanged()
         return added
     }
 
