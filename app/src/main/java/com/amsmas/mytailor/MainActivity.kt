@@ -309,7 +309,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
-                selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
+                selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database)
                 selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
                 selected == MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
