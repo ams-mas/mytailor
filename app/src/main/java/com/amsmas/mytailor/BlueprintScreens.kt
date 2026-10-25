@@ -89,14 +89,14 @@ internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit)
             if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
             if (editingId > 0) TextButton(onClick = { editingId = 0; name = ""; phone = ""; address = ""; payRate = ""; payType = "piece_rate"; message = "" }) { Text("لغو ویرایش", color = TextMuted) }
         }
-        Text("فهرست کارمندان (\${workers.size})", color = BurgundyDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+        Text("فهرست کارمندان (${workers.size})", color = BurgundyDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
         if (workers.isEmpty()) Text("هنوز کارمندی ثبت نشده است.", color = TextMuted)
         workers.forEach { worker ->
             Row(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(worker.name, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Text(if (worker.phone.isBlank()) "بدون شماره تماس" else worker.phone, color = TextMuted, fontSize = 12.sp)
-                    Text("\${payTypeLabel(worker.payType)} · \${blueprintMoney(worker.payRate)} افغانی", color = BurgundyDark, fontSize = 12.sp)
+                    Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = BurgundyDark, fontSize = 12.sp)
                     if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 11.sp)
                 }
                 TextButton(onClick = { editingId = worker.id; name = worker.name; phone = worker.phone; address = worker.address; payType = worker.payType; payRate = worker.payRate.toString(); message = "" }) { Text("ویرایش", color = Burgundy) }
@@ -164,15 +164,15 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
             orders.forEach { order ->
                 Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).clickable { selectedOrder = order }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(order.customerName, color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text("\${order.garmentModel} · سفارش #\${order.id}", color = TextDark, fontSize = 12.sp)
-                    Text("تحویل: \${order.deliveryDate}", color = TextMuted, fontSize = 11.sp)
+                    Text("${order.garmentModel} · سفارش #${order.id}", color = TextDark, fontSize = 12.sp)
+                    Text("تحویل: ${order.deliveryDate}", color = TextMuted, fontSize = 11.sp)
                     Text("برای مدیریت مراحل لمس کنید  ›", color = Burgundy, fontSize = 12.sp)
                 }
             }
         } else {
             val order = selectedOrder!!
             val workflow = remember(order.id, revision) { database.getOrderWorkflow(order.id) }
-            Text("\${order.customerName} — \${order.garmentModel}", color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+            Text("${order.customerName} — ${order.garmentModel}", color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
             if (workflow.isEmpty()) Text("برای این سفارش مرحله‌ای ثبت نشده است.", color = TextMuted)
             workflow.forEach { step ->
                 var menuExpanded by remember(step.assignmentId) { mutableStateOf(false) }
@@ -183,7 +183,7 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
                             Text(when (step.status) { "done" -> "تکمیل‌شده"; "in_progress" -> "در حال انجام"; else -> "در انتظار" }, color = if (step.status == "done") Color(0xFF2E7D32) else Burgundy, fontSize = 12.sp)
                         }
                         Box {
-                            TextButton(onClick = { menuExpanded = true }) { Text(if (step.workerName.isBlank()) "تعیین کارمند ▾" else "\${step.workerName} ▾", color = Burgundy, fontSize = 12.sp) }
+                            TextButton(onClick = { menuExpanded = true }) { Text(if (step.workerName.isBlank()) "تعیین کارمند ▾" else "${step.workerName} ▾", color = Burgundy, fontSize = 12.sp) }
                             DropdownMenu(expanded = menuExpanded, onDismissRequest = { menuExpanded = false }) {
                                 DropdownMenuItem(text = { Text("بدون مسئول") }, onClick = { database.assignWorkflowStep(step.assignmentId, null); menuExpanded = false })
                                 workers.forEach { worker ->
@@ -197,7 +197,7 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
                             Button(onClick = { database.updateWorkflowStepStatus(step.assignmentId, status) }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = if (step.status == status) BurgundyDark else BurgundySoft, contentColor = if (step.status == status) Color.White else BurgundyDark), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 7.dp)) { Text(label, fontSize = 11.sp) }
                         }
                     }
-                    if (step.status == "done" && step.completedAt.isNotBlank()) Text("تاریخ تکمیل: \${step.completedAt}", color = TextMuted, fontSize = 10.sp)
+                    if (step.status == "done" && step.completedAt.isNotBlank()) Text("تاریخ تکمیل: ${step.completedAt}", color = TextMuted, fontSize = 10.sp)
                 }
             }
         }
@@ -230,21 +230,21 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
         payroll.forEach { row ->
             Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(15.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(row.name, color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                Text("\${payTypeLabel(row.payType)} · نرخ \${blueprintMoney(row.payRate)} افغانی", color = TextMuted, fontSize = 12.sp)
-                Text("واحد محاسبه: \${row.units} · استحقاق: \${blueprintMoney(row.earned)} افغانی", color = TextDark, fontSize = 13.sp)
-                Text("پرداخت‌شده: \${blueprintMoney(row.paid)} افغانی", color = TextMuted, fontSize = 12.sp)
-                Text("باقی معاش: \${blueprintMoney(row.due)} افغانی", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                Text("${payTypeLabel(row.payType)} · نرخ ${blueprintMoney(row.payRate)} افغانی", color = TextMuted, fontSize = 12.sp)
+                Text("واحد محاسبه: ${row.units} · استحقاق: ${blueprintMoney(row.earned)} افغانی", color = TextDark, fontSize = 13.sp)
+                Text("پرداخت‌شده: ${blueprintMoney(row.paid)} افغانی", color = TextMuted, fontSize = 12.sp)
+                Text("باقی معاش: ${blueprintMoney(row.due)} افغانی", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (row.payType == "daily") {
                         Button(onClick = {
                             database.recordWorkerAttendance(row.workerId, today)
-                            message = "حاضری امروز برای \${row.name} ثبت شد."
+                            message = "حاضری امروز برای ${row.name} ثبت شد."
                         }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("ثبت حاضری امروز", fontSize = 11.sp) }
                     }
                     Button(onClick = {
                         if (row.due > 0) {
                             database.markWorkerPaid(row.workerId, row.due, startDate, endDate, "پرداخت معاش بازه انتخاب‌شده")
-                            message = "پرداخت معاش \${row.name} ثبت شد."
+                            message = "پرداخت معاش ${row.name} ثبت شد."
                         } else message = "برای این بازه معاش باقی نمانده است."
                     }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Burgundy, contentColor = Color.White), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("علامت‌گذاری پرداخت", fontSize = 11.sp) }
                 }
