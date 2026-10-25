@@ -300,6 +300,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     var showBackupRestore by remember { mutableStateOf(false) }
     var showWorkerManagement by remember { mutableStateOf(false) }
     var showWorkerMenu by remember { mutableStateOf(false) }
+    var showWorkerList by remember { mutableStateOf(false) }
     var showWorkerAttendance by remember { mutableStateOf(false) }
     var showWorkerAttendanceReports by remember { mutableStateOf(false) }
     var showWorkflowSettings by remember { mutableStateOf(false) }
@@ -327,10 +328,11 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 showWorkerAttendanceReports -> WorkerAttendanceReportsScreen(database = database, onBack = { showWorkerAttendanceReports = false })
                 showWorkerAttendance -> WorkerDailyAttendanceScreen(database = database, onBack = { showWorkerAttendance = false }, onOpenReports = { showWorkerAttendanceReports = true })
+                showWorkerList -> WorkerListScreen(database = database, onBack = { showWorkerList = false })
                 showWorkerMenu -> WorkerMenuScreen(
                     onBack = { showWorkerMenu = false },
                     onRegister = { showWorkerMenu = false; showWorkerManagement = true },
-                    onList = { showWorkerMenu = false; showWorkerManagement = true },
+                    onList = { showWorkerMenu = false; showWorkerList = true },
                     onPayroll = { showWorkerMenu = false; selected = MainTab.FINANCE },
                     onAttendance = { showWorkerMenu = false; showWorkerAttendance = true }
                 )
