@@ -742,6 +742,7 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 }
 
 
+@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: () -> Unit) {
     var customerName by remember { mutableStateOf("") }
