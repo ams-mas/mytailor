@@ -261,6 +261,14 @@ internal class LocalDatabase(context: Context) :
         notifyChanged()
     }
 
+    fun getWorkerAttendanceForDate(workDate: String): Set<Int> {
+        val workerIds = mutableSetOf<Int>()
+        readableDatabase.rawQuery("SELECT worker_id FROM worker_attendance WHERE work_date = ?", arrayOf(workDate)).use { cursor ->
+            while (cursor.moveToNext()) workerIds.add(cursor.getInt(0))
+        }
+        return workerIds
+    }
+
     fun getWorkerPayroll(startDate: String, endDate: String): List<WorkerPayrollRecord> {
         val rows = mutableListOf<WorkerPayrollRecord>()
         val workers = getWorkers()
