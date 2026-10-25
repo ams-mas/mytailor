@@ -74,7 +74,7 @@ internal val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
-internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
+internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double, val address: String = "")
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), FINANCE("مالی", "؋"), SETTINGS("تنظیمات", "⚙") }
 private const val APP_BACKGROUND_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/tailoring_wallpaper_4K.png"
@@ -982,6 +982,7 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: (TailorOrder) -> Unit) {
     var customerName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -1012,6 +1013,8 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
         OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس مشتری (اختیاری)") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Text("انتخاب مدل لباس", color = BurgundyDark, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
         Box {
             OutlinedTextField(
@@ -1079,7 +1082,7 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 total <= 0 -> message = "قیمت را وارد کنید."
                 payment < 0 || payment > total -> message = "مقدار پرداخت نباید از قیمت بیشتر باشد."
                 else -> {
-                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment)
+                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment, address.trim())
                     runCatching {
                         database.addOrder(order)
                     }.onSuccess { onSave(order) }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
@@ -1577,6 +1580,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
     var pendingStatus by remember { mutableStateOf<String?>(null) }
     var pendingCustomerName by remember { mutableStateOf(customer.name) }
     var pendingCustomerPhone by remember { mutableStateOf(customer.phone) }
+    var pendingCustomerAddress by remember { mutableStateOf(customer.address) }
     val orders = remember(customer.name, customer.phone, activeOnly, refreshKey, database.revision.intValue) {
         database.getCustomerOrders(customer.name, customer.phone, activeOnly)
     }
@@ -1595,9 +1599,10 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
         CustomerDetailsEditor(
             customer = customer,
             onBack = { editCustomer = false },
-            onSaveRequest = { newName, newPhone ->
+            onSaveRequest = { newName, newPhone, newAddress ->
                 pendingCustomerName = newName
                 pendingCustomerPhone = newPhone
+                pendingCustomerAddress = newAddress
                 confirmCustomerSave = true
             }
         )
@@ -1607,7 +1612,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 title = { Text("تأیید تغییر مشخصات") },
                 text = { Text("آیا می‌خواهید مشخصات مشتری را در تمام سفارش‌های او تغییر دهید؟") },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = {
-                    database.updateCustomerDetails(customer.name, customer.phone, pendingCustomerName, pendingCustomerPhone)
+                    database.updateCustomerDetails(customer.name, customer.phone, pendingCustomerName, pendingCustomerPhone, pendingCustomerAddress)
                     confirmCustomerSave = false
                     editCustomer = false
                     onBack()
@@ -1674,6 +1679,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             Text("مشخصات مشتری", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text("نام مشتری: ${customer.name}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Text("شماره تلفن: ${customer.phone.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("آدرس: ${customer.address.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             if (customer.activeOrderCount > 0 || customer.remaining > 0) {
                 Text("تا زمانی که مشتری سفارش فعال یا بدهی داشته باشد، حذف مشتری غیرفعال است.", color = Color(0xFFB33A32), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
             }
@@ -1770,10 +1776,11 @@ private fun statusLabel(status: String): String = when (status) {
 private fun CustomerDetailsEditor(
     customer: CustomerSummary,
     onBack: () -> Unit,
-    onSaveRequest: (String, String) -> Unit
+    onSaveRequest: (String, String, String) -> Unit
 ) {
     var name by remember(customer.name) { mutableStateOf(customer.name) }
     var phone by remember(customer.phone) { mutableStateOf(customer.phone) }
+    var address by remember(customer.address) { mutableStateOf(customer.address) }
     Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
@@ -1783,7 +1790,8 @@ private fun CustomerDetailsEditor(
                         shape = RoundedCornerShape(16.dp),)
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("شماره تلفن") }, singleLine = true, colors = appFieldColors(),
                         shape = RoundedCornerShape(16.dp),)
-        Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(16.dp))
+        Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim(), address.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
             Text("ذخیره تغییرات", color = Color.White)
         }
     }
