@@ -11,7 +11,7 @@ import org.json.JSONObject
  * On-device database. Records remain available after the app is closed or the phone restarts.
  * Backup/export and restore/import can be added later without changing the app's data model.
  */
-internal data class CustomerSummary(val name: String, val phone: String, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
+internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -134,7 +134,9 @@ internal class LocalDatabase(context: Context) :
         val where = if (term.isBlank()) "" else "WHERE customer_name LIKE ? OR phone LIKE ?"
         val args = if (term.isBlank()) null else arrayOf("%$term%", "%$term%")
         val sql = """
-            SELECT customer_name, phone, COUNT(*) AS order_count,
+            SELECT customer_name, phone,
+                   SUM(CASE WHEN status != 'ready' THEN 1 ELSE 0 END) AS active_order_count,
+                   COUNT(*) AS order_count,
                    COALESCE(SUM(remaining), 0) AS total_remaining,
                    (SELECT o2.delivery_date FROM orders o2
                     WHERE o2.customer_name = orders.customer_name AND o2.phone = orders.phone
@@ -149,9 +151,10 @@ internal class LocalDatabase(context: Context) :
                 result.add(CustomerSummary(
                     name = cursor.getString(0) ?: "",
                     phone = cursor.getString(1) ?: "",
-                    orderCount = cursor.getInt(2),
-                    remaining = cursor.getDouble(3),
-                    lastDeliveryDate = cursor.getString(4) ?: ""
+                    activeOrderCount = cursor.getInt(2),
+                    orderCount = cursor.getInt(3),
+                    remaining = cursor.getDouble(4),
+                    lastDeliveryDate = cursor.getString(5) ?: ""
                 ))
             }
         }
