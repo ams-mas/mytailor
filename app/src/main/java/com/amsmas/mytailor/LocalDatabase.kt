@@ -68,7 +68,8 @@ internal class LocalDatabase(context: Context) :
             migrateLegacyData(db)
         }
         if (oldVersion < 7) {
-            db.execSQL("ALTER TABLE worker_attendance ADD COLUMN status TEXT NOT NULL DEFAULT 'present'")
+            // Versions below 6 create the current attendance schema during the same upgrade.
+            if (oldVersion >= 6) db.execSQL("ALTER TABLE worker_attendance ADD COLUMN status TEXT NOT NULL DEFAULT 'present'")
             createWorkerContractsTable(db)
         }
     }
