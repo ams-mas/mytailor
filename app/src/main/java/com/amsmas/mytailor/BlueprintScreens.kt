@@ -525,14 +525,23 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
 @Composable
 internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
     var filter by remember { mutableStateOf("all") }
+    var sortBy by remember { mutableStateOf("name_asc") }
     var searchText by remember { mutableStateOf("") }
     var appliedSearch by remember { mutableStateOf("") }
     var editingWorker by remember { mutableStateOf<WorkerRecord?>(null) }
     val revision = database.revision.intValue
     val workers = remember(revision, filter, appliedSearch) {
         database.getWorkers(includeInactive = true)
-            .filter { filter == "all" || it.payType == filter }
+            .filter { when (filter) { "active" -> it.active; "inactive" -> !it.active; "monthly" -> it.active && it.payType == "monthly"; "daily" -> it.active && it.payType == "daily"; else -> it.active } }
             .filter { appliedSearch.isBlank() || it.name.contains(appliedSearch, ignoreCase = true) || it.phone.contains(appliedSearch, ignoreCase = true) }
+            .let { list -> when (sortBy) {
+                "pay_high" -> list.sortedByDescending { it.payRate }
+                "pay_low" -> list.sortedBy { it.payRate }
+                "name_desc" -> list.sortedByDescending { it.name.lowercase() }
+                "hire_old" -> list.sortedWith(compareBy<WorkerRecord> { it.startDate.isBlank() }.thenBy { it.startDate })
+                "hire_new" -> list.sortedWith(compareByDescending<WorkerRecord> { it.startDate.isNotBlank() }.thenByDescending { it.startDate })
+                else -> list.sortedBy { it.name.lowercase() }
+            } }
     }
 
     if (editingWorker != null) {
@@ -560,29 +569,33 @@ internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
                 contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)) { Text("جستجو", fontSize = 12.sp) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("all" to "تمام کارمندان", "monthly" to "کارمندان ماهانه", "daily" to "کارمندان روزانه").forEach { (type, label) ->
+            listOf("all" to "فعال", "monthly" to "ماهانه", "daily" to "روزانه", "inactive" to "غیرفعال").forEach { (type, label) ->
                 Button(onClick = { filter = type }, modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = if (filter == type) Burgundy else BurgundySoft, contentColor = if (filter == type) Color.White else BurgundyDark),
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 7.dp)) { Text(label, fontSize = 10.sp) }
             }
         }
+        Text("مرتب‌سازی", color = TextDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+        androidx.compose.material3.OutlinedButton(onClick = { sortBy = when (sortBy) { "pay_high" -> "pay_low"; "pay_low" -> "name_asc"; "name_asc" -> "name_desc"; "name_desc" -> "hire_old"; "hire_old" -> "hire_new"; else -> "pay_high" } }, modifier = Modifier.fillMaxWidth()) {
+            Text(when (sortBy) { "pay_high" -> "معاش: بیشترین اول"; "pay_low" -> "معاش: کمترین اول"; "name_desc" -> "نام: نزولی"; "hire_old" -> "تاریخ استخدام: قدیمی‌تر اول"; "hire_new" -> "تاریخ استخدام: جدیدتر اول"; else -> "نام: الف تا ی" }, fontSize = 12.sp)
+        }
         Text("تعداد کارمندان: ${workers.size}", color = TextMuted, fontSize = 12.sp)
         if (workers.isEmpty()) Text("کارمندی مطابق جستجو پیدا نشد.", color = TextMuted)
         workers.forEachIndexed { index, worker ->
             Row(
-                Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 7.dp),
+                Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(7.dp)
             ) {
-                TextButton(onClick = { editingWorker = worker }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp)) {
-                    Text("ویرایش", color = Burgundy, fontSize = 11.sp)
-                }
+                Text("${index + 1}", color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
                 Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
                     Text(worker.name, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                     Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = TextDark, fontSize = 10.sp)
                     if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 10.sp)
                 }
-                Text("${index + 1}", color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
+                TextButton(onClick = { editingWorker = worker }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp)) {
+                    Text("ویرایش", color = Burgundy, fontSize = 11.sp)
+                }
             }
         }
     }
