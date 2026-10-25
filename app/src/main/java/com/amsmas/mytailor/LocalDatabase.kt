@@ -449,4 +449,15 @@ internal class LocalDatabase(context: Context) :
         notifyChanged()
     }
 
+
+    fun getFinancialReport(): Pair<Double, Double> {
+        readableDatabase.rawQuery(
+            "SELECT COALESCE(SUM(price), 0), COALESCE(SUM(remaining), 0) FROM orders",
+            null
+        ).use { cursor ->
+            if (cursor.moveToFirst()) return cursor.getDouble(0) to cursor.getDouble(1)
+        }
+        return 0.0 to 0.0
+    }
+
 }
