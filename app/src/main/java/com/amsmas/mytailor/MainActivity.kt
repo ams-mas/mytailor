@@ -771,21 +771,35 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors())
         Text("انتخاب مدل لباس", color = BurgundyDark, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-        if (models.isEmpty()) {
-            Text("ابتدا در تنظیمات کارگاه، مدل لباس و اندازه‌های آن را ثبت کنید.", color = TextMuted, fontSize = 13.sp)
-        } else {
-            models.forEach { model ->
-                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(if (selectedModelName == model.name) BurgundySoft else Color.White, RoundedCornerShape(10.dp)).clickable {
-                    selectedModelName = model.name
-                    measurements = model.measurements.associateWith { measurements[it] ?: "" }
-                    message = ""
-                }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Checkbox(checked = selectedModelName == model.name, onCheckedChange = {
-                        selectedModelName = model.name
-                        measurements = model.measurements.associateWith { measurements[it] ?: "" }
-                        message = ""
-                    })
-                    Text(model.name, color = TextDark)
+        var modelMenuExpanded by remember { mutableStateOf(false) }
+        Box {
+            OutlinedTextField(
+                value = selectedModelName,
+                onValueChange = {},
+                readOnly = true,
+                enabled = models.isNotEmpty(),
+                modifier = Modifier.fillMaxWidth().clickable { if (models.isNotEmpty()) modelMenuExpanded = true },
+                label = { Text("مدل لباس") },
+                placeholder = { Text(if (models.isEmpty()) "ابتدا مدل لباس را در تنظیمات ثبت کنید" else "یک مدل انتخاب کنید") },
+                trailingIcon = { Text("▾", color = BurgundyDark, modifier = Modifier.clickable { if (models.isNotEmpty()) modelMenuExpanded = true }.padding(horizontal = 12.dp)) },
+                colors = appFieldColors()
+            )
+            Box(Modifier.matchParentSize().clickable { if (models.isNotEmpty()) modelMenuExpanded = true })
+            androidx.compose.material3.DropdownMenu(
+                expanded = modelMenuExpanded,
+                onDismissRequest = { modelMenuExpanded = false },
+                modifier = Modifier.fillMaxWidth(0.9f).background(Color.White)
+            ) {
+                models.forEach { model ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(model.name, color = TextDark) },
+                        onClick = {
+                            selectedModelName = model.name
+                            measurements = model.measurements.associateWith { measurements[it] ?: "" }
+                            modelMenuExpanded = false
+                            message = ""
+                        }
+                    )
                 }
             }
         }
