@@ -1678,7 +1678,7 @@ private fun CustomerListScreen(database: LocalDatabase) {
                             }
                         }
                         if (customer.lastDeliveryDate.isNotBlank()) {
-                            Text("آخرین تاریخ تحویل: ${customer.lastDeliveryDate}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+                            Text("آخرین تاریخ تحویل: ${displayShopDate(customer.lastDeliveryDate)}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
                         }
                     }
                 }
