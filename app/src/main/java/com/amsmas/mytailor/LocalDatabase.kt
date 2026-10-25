@@ -148,7 +148,7 @@ internal class LocalDatabase(context: Context) :
         db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", order.garmentModel.trim()) }, SQLiteDatabase.CONFLICT_IGNORE)
         val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(order.garmentModel.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
         if (customerId > 0 && typeId > 0) {
-            order.measurements.forEachIndexed { index, entry ->
+            order.measurements.entries.forEachIndexed { index, entry ->
                 db.insertWithOnConflict("measurement_fields", null, ContentValues().apply { put("order_type_id", typeId); put("field_name", entry.key); put("field_order", index + 1) }, SQLiteDatabase.CONFLICT_IGNORE)
                 val fieldId = db.rawQuery("SELECT id FROM measurement_fields WHERE order_type_id = ? AND field_name = ?", arrayOf(typeId.toString(), entry.key)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
                 if (fieldId > 0 && entry.value.isNotBlank()) db.insert("customer_measurements", null, ContentValues().apply {
