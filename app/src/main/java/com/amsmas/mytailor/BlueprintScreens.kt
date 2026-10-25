@@ -87,7 +87,7 @@ internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit)
                         message = "معلومات کارمند ذخیره شد."
                     }
                 }
-            }, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره کارمند") }
+            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره کارمند") }
             if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
             if (editingId > 0) TextButton(onClick = { editingId = 0; name = ""; phone = ""; address = ""; payRate = ""; payType = "piece_rate"; message = "" }) { Text("لغو ویرایش", color = TextMuted) }
         }
@@ -132,7 +132,7 @@ internal fun WorkflowSettingsScreen(database: LocalDatabase, onBack: () -> Unit)
                     database.saveWorkflowStep(stepName, order)
                     stepName = ""; stepOrder = (database.getWorkflowSteps().size + 1).toString(); message = "مرحله ذخیره شد."
                 }
-            }, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("افزودن / ذخیره مرحله") }
+            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("افزودن / ذخیره مرحله") }
             if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
         }
         Text("ترتیب مراحل", color = BurgundyDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
