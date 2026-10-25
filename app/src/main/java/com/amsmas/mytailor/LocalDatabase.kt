@@ -460,4 +460,52 @@ internal class LocalDatabase(context: Context) :
         return 0.0 to 0.0
     }
 
+
+    fun getIncomeForPeriod(period: String, startDate: String = "", endDate: String = ""): Double {
+        val where = when (period) {
+            "week" -> "date(registered_at) >= date('now', '-6 days') AND date(registered_at) <= date('now')"
+            "month" -> "strftime('%Y-%m', registered_at) = strftime('%Y-%m', 'now')"
+            "year" -> "strftime('%Y', registered_at) = strftime('%Y', 'now')"
+            "custom" -> "date(registered_at) >= date(?) AND date(registered_at) <= date(?)"
+            else -> "date(registered_at) = date('now')"
+        }
+        val args = if (period == "custom") arrayOf(startDate, endDate) else null
+        readableDatabase.rawQuery(
+            "SELECT COALESCE(SUM(deposit + paid), 0) FROM orders WHERE $where",
+            args
+        ).use { cursor -> return if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0 }
+    }
+
+    fun getDebtCustomers(): List<Pair<CustomerSummary, Double>> {
+        val result = mutableListOf<Pair<CustomerSummary, Double>>()
+        readableDatabase.rawQuery(
+            """
+            SELECT customer_name, phone,
+                   SUM(CASE WHEN status NOT IN ('ready', 'delivered') THEN 1 ELSE 0 END),
+                   COUNT(*), SUM(remaining),
+                   (SELECT o2.delivery_date FROM orders o2
+                    WHERE o2.customer_name = orders.customer_name AND o2.phone = orders.phone
+                    ORDER BY o2.id DESC LIMIT 1)
+            FROM orders
+            GROUP BY customer_name, phone
+            HAVING SUM(remaining) > 0
+            ORDER BY SUM(remaining) DESC
+            """.trimIndent(),
+            null
+        ).use { cursor ->
+            while (cursor.moveToNext()) {
+                val customer = CustomerSummary(
+                    name = cursor.getString(0),
+                    phone = cursor.getString(1),
+                    activeOrderCount = cursor.getInt(2),
+                    orderCount = cursor.getInt(3),
+                    remaining = cursor.getDouble(4),
+                    lastDeliveryDate = cursor.getString(5) ?: ""
+                )
+                result.add(customer to customer.remaining)
+            }
+        }
+        return result
+    }
+
 }
