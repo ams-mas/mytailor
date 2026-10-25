@@ -250,11 +250,14 @@ internal class LocalDatabase(context: Context) :
         val workers = getWorkers()
         val start = startDate.ifBlank { java.text.SimpleDateFormat("yyyy-MM-01", java.util.Locale.US).format(java.util.Date()) }
         val end = endDate.ifBlank { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) }
-        val days = runCatching { java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(start), java.time.LocalDate.parse(end)).toInt() + 1 }.getOrDefault(1).coerceAtLeast(1)
-        val months = runCatching {
-            val a = java.time.LocalDate.parse(start); val b = java.time.LocalDate.parse(end)
-            ((b.year - a.year) * 12 + b.monthValue - a.monthValue + 1).coerceAtLeast(1)
-        }.getOrDefault(1)
+        val dateFormat = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US)
+        val startMillis = runCatching { dateFormat.parse(start)?.time }.getOrNull() ?: System.currentTimeMillis()
+        val endMillis = runCatching { dateFormat.parse(end)?.time }.getOrNull() ?: startMillis
+        val days = (java.util.concurrent.TimeUnit.MILLISECONDS.toDays(kotlin.math.abs(endMillis - startMillis)).toInt() + 1).coerceAtLeast(1)
+        val startCalendar = java.util.Calendar.getInstance().apply { timeInMillis = startMillis }
+        val endCalendar = java.util.Calendar.getInstance().apply { timeInMillis = endMillis }
+        val months = ((endCalendar.get(java.util.Calendar.YEAR) - startCalendar.get(java.util.Calendar.YEAR)) * 12 +
+            endCalendar.get(java.util.Calendar.MONTH) - startCalendar.get(java.util.Calendar.MONTH) + 1).coerceAtLeast(1)
         workers.forEach { worker ->
             val units: Int
             val earned: Double
@@ -672,10 +675,20 @@ internal class LocalDatabase(context: Context) :
     }
 
     fun updateOrderMeasurements(orderId: Int, measurements: Map<String, String>) {
-        val values = ContentValues().apply {
-            put("measurements_json", JSONObject(measurements).toString())
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.update("orders", ContentValues().apply { put("measurements_json", JSONObject(measurements).toString()) }, "id = ?", arrayOf(orderId.toString()))
+            db.rawQuery("SELECT customer_name,phone,garment_model,notes,delivery_date,price,deposit,paid FROM orders WHERE id=?", arrayOf(orderId.toString())).use { c ->
+                if (c.moveToFirst()) {
+                    val order = TailorOrder(c.getString(0), c.getString(1), c.getString(2), measurements, c.getString(3), c.getString(4), c.getDouble(5), c.getDouble(6), c.getDouble(7))
+                    syncOrderBlueprintData(db, orderId.toLong(), order)
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
         }
-        writableDatabase.update("orders", values, "id = ?", arrayOf(orderId.toString()))
         notifyChanged()
     }
 
