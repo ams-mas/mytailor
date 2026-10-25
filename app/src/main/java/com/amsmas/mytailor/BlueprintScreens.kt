@@ -405,7 +405,9 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
         OutlinedTextField(workerQuery,{workerQuery=it},Modifier.fillMaxWidth(),label={Text("نام یا شماره کارمند (اختیاری)")},singleLine=true,colors=appFieldColors(),shape=RoundedCornerShape(12.dp))
         JalaliDateInput(startDate, { startDate = it }, "از تاریخ")
         JalaliDateInput(endDate, { endDate = it }, "تا تاریخ")
-        if(!validIsoDate(startDate)||!validIsoDate(endDate)||startDate>endDate) Text("بازه تاریخ معتبر نیست.",color=Color(0xFFB33A32),fontSize=12.sp)
+        if (validIsoDate(startDate) && validIsoDate(endDate) && startDate <= endDate) {
+            Text("بازه گزارش: ${isoDateToJalali(startDate)} تا ${isoDateToJalali(endDate)}", color = TextMuted, fontSize = 11.sp)
+        } else Text("بازه تاریخ معتبر نیست.",color=Color(0xFFB33A32),fontSize=12.sp)
         val totalPresent=rows.sumOf{it.present}
         val totalWage=rows.filter{it.payType=="daily"}.sumOf{it.wageTotal}
         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(13.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
