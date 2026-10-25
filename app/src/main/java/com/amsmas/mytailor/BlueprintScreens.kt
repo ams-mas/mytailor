@@ -211,11 +211,7 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
 @Composable
 internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
-    val monthStart = remember {
-        val calendar = Calendar.getInstance()
-        calendar.set(Calendar.DAY_OF_MONTH, 1)
-        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
-    }
+    val monthStart = remember { currentJalaliMonthStartIso() }
     var startDate by remember { mutableStateOf(monthStart) }
     var endDate by remember { mutableStateOf(today) }
     var workerType by remember { mutableStateOf("monthly") }
@@ -383,7 +379,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
 @Composable
 internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
-    val monthStart = remember { Calendar.getInstance().apply { set(Calendar.DAY_OF_MONTH,1) }.let { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(it.time) } }
+    val monthStart = remember { currentJalaliMonthStartIso() }
     var startDate by remember { mutableStateOf(monthStart) }
     var endDate by remember { mutableStateOf(today) }
     var workerType by remember { mutableStateOf("all") }
