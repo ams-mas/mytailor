@@ -9,7 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val DATABASE_NAME = "mytailor_local.db"
-private const val DATABASE_VERSION = 6
+private const val DATABASE_VERSION = 7
 
 /**
  * On-device database. Records remain available after the app is closed or the phone restarts.
@@ -18,11 +18,12 @@ private const val DATABASE_VERSION = 6
 internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String, val address: String = "")
 internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val measurementsJson: String, val notes: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
 internal data class DeliveryOrder(val id: Int, val customerName: String, val phone: String, val garmentModel: String, val deliveryDate: String, val price: Double, val paid: Double, val remaining: Double, val status: String)
-internal data class WorkerRecord(val id: Int = 0, val name: String, val phone: String = "", val address: String = "", val payType: String = "piece_rate", val payRate: Double = 0.0, val active: Boolean = true)
+internal data class WorkerRecord(val id: Int = 0, val name: String, val phone: String = "", val address: String = "", val payType: String = "piece_rate", val payRate: Double = 0.0, val active: Boolean = true, val startDate: String = "", val endDate: String = "")
 internal data class WorkflowStepRecord(val id: Int, val name: String, val stepOrder: Int)
 internal data class OrderWorkflowRecord(val assignmentId: Int, val orderId: Int, val stepId: Int, val stepName: String, val workerId: Int?, val workerName: String, val status: String, val completedAt: String)
 internal data class CustomerMeasurementRecord(val orderType: String, val fieldName: String, val value: String, val recordedAt: String)
 internal data class WorkerPayrollRecord(val workerId: Int, val name: String, val payType: String, val payRate: Double, val units: Int, val earned: Double, val paid: Double) { val due: Double get() = (earned - paid).coerceAtLeast(0.0) }
+internal data class WorkerAttendanceReportRecord(val workerId: Int, val name: String, val payType: String, val rate: Double, val present: Int, val absent: Int, val leave: Int, val wageTotal: Double)
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -66,6 +67,10 @@ internal class LocalDatabase(context: Context) :
             seedDefaultWorkflow(db)
             migrateLegacyData(db)
         }
+        if (oldVersion < 7) {
+            db.execSQL("ALTER TABLE worker_attendance ADD COLUMN status TEXT NOT NULL DEFAULT 'present'")
+            createWorkerContractsTable(db)
+        }
     }
 
     private fun createBlueprintTables(db: SQLiteDatabase) {
@@ -79,9 +84,14 @@ internal class LocalDatabase(context: Context) :
         db.execSQL("CREATE TABLE IF NOT EXISTS workflow_steps (id INTEGER PRIMARY KEY AUTOINCREMENT, step_name TEXT NOT NULL UNIQUE COLLATE NOCASE, step_order INTEGER NOT NULL DEFAULT 0)")
         db.execSQL("CREATE TABLE IF NOT EXISTS order_step_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, step_id INTEGER NOT NULL, worker_id INTEGER, step_status TEXT NOT NULL DEFAULT 'pending', completed_at TEXT, payout_amount REAL NOT NULL DEFAULT 0, UNIQUE(order_id, step_id), FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE, FOREIGN KEY(step_id) REFERENCES workflow_steps(id), FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE SET NULL)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_order_steps_status ON order_step_assignments(step_status, order_id)")
-        db.execSQL("CREATE TABLE IF NOT EXISTS worker_attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, work_date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', UNIQUE(worker_id, work_date), FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS worker_attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, work_date TEXT NOT NULL, status TEXT NOT NULL DEFAULT 'present', note TEXT NOT NULL DEFAULT '', UNIQUE(worker_id, work_date), FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
+        createWorkerContractsTable(db)
         db.execSQL("CREATE TABLE IF NOT EXISTS worker_payouts (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, amount REAL NOT NULL CHECK(amount > 0), payout_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, period_start TEXT NOT NULL DEFAULT '', period_end TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
         db.execSQL("CREATE INDEX IF NOT EXISTS idx_worker_payouts_date ON worker_payouts(worker_id, payout_date)")
+    }
+
+    private fun createWorkerContractsTable(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS worker_contracts (contract_id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL UNIQUE, start_date TEXT NOT NULL, end_date TEXT, daily_wage_rate REAL NOT NULL DEFAULT 0, FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
     }
 
     private fun seedDefaultWorkflow(db: SQLiteDatabase) {
@@ -165,9 +175,12 @@ internal class LocalDatabase(context: Context) :
 
     fun getWorkers(includeInactive: Boolean = false): List<WorkerRecord> {
         val rows = mutableListOf<WorkerRecord>()
-        val sql = if (includeInactive) "SELECT id,name,phone,address,pay_type,pay_rate,active FROM workers ORDER BY active DESC,name" else "SELECT id,name,phone,address,pay_type,pay_rate,active FROM workers WHERE active=1 ORDER BY name"
+        val sql = if (includeInactive)
+            "SELECT w.id,w.name,w.phone,w.address,w.pay_type,CASE WHEN w.pay_type='daily' THEN COALESCE(c.daily_wage_rate,w.pay_rate) ELSE w.pay_rate END,w.active,COALESCE(c.start_date,''),COALESCE(c.end_date,'') FROM workers w LEFT JOIN worker_contracts c ON c.worker_id=w.id ORDER BY w.active DESC,w.name"
+        else
+            "SELECT w.id,w.name,w.phone,w.address,w.pay_type,CASE WHEN w.pay_type='daily' THEN COALESCE(c.daily_wage_rate,w.pay_rate) ELSE w.pay_rate END,w.active,COALESCE(c.start_date,''),COALESCE(c.end_date,'') FROM workers w LEFT JOIN worker_contracts c ON c.worker_id=w.id WHERE w.active=1 ORDER BY w.name"
         readableDatabase.rawQuery(sql, null).use { c ->
-            while (c.moveToNext()) rows.add(WorkerRecord(c.getInt(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getDouble(5), c.getInt(6) == 1))
+            while (c.moveToNext()) rows.add(WorkerRecord(c.getInt(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getDouble(5), c.getInt(6) == 1, c.getString(7), c.getString(8)))
         }
         return rows
     }
@@ -177,8 +190,22 @@ internal class LocalDatabase(context: Context) :
             put("name", worker.name.trim()); put("phone", worker.phone.trim()); put("address", worker.address.trim())
             put("pay_type", worker.payType); put("pay_rate", worker.payRate); put("active", if (worker.active) 1 else 0)
         }
-        if (worker.id > 0) writableDatabase.update("workers", values, "id = ?", arrayOf(worker.id.toString()))
-        else writableDatabase.insertOrThrow("workers", null, values)
+        val db = writableDatabase
+        val workerId = if (worker.id > 0) {
+            db.update("workers", values, "id = ?", arrayOf(worker.id.toString()))
+            worker.id.toLong()
+        } else db.insertOrThrow("workers", null, values)
+        if (worker.payType == "daily") {
+            val start = worker.startDate.trim().ifBlank { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) }
+            val end = worker.endDate.trim().ifBlank { null }
+            db.insertWithOnConflict("worker_contracts", null, ContentValues().apply {
+                put("worker_id", workerId); put("start_date", start)
+                if (end == null) putNull("end_date") else put("end_date", end)
+                put("daily_wage_rate", worker.payRate)
+            }, SQLiteDatabase.CONFLICT_REPLACE)
+        } else if (worker.id > 0) {
+            db.delete("worker_contracts", "worker_id=?", arrayOf(worker.id.toString()))
+        }
         notifyChanged()
     }
 
@@ -256,17 +283,63 @@ internal class LocalDatabase(context: Context) :
         return rows
     }
 
-    fun recordWorkerAttendance(workerId: Int, workDate: String, note: String = "") {
-        writableDatabase.insertWithOnConflict("worker_attendance", null, ContentValues().apply { put("worker_id", workerId); put("work_date", workDate); put("note", note) }, SQLiteDatabase.CONFLICT_IGNORE)
+    fun recordWorkerAttendance(workerId: Int, workDate: String, note: String = ""): Boolean =
+        setWorkerAttendanceStatus(workerId, workDate, "present", note)
+
+    fun setWorkerAttendanceStatus(workerId: Int, workDate: String, status: String, note: String = ""): Boolean {
+        if (status !in listOf("present", "absent", "leave") || !isValidDate(workDate)) return false
+        val worker = getWorkers(includeInactive = true).firstOrNull { it.id == workerId } ?: return false
+        if (worker.payType == "daily" && (workDate < worker.startDate || (worker.endDate.isNotBlank() && workDate > worker.endDate))) return false
+        val values = ContentValues().apply { put("worker_id", workerId); put("work_date", workDate); put("status", status); put("note", note.trim()) }
+        writableDatabase.insertWithOnConflict("worker_attendance", null, values, SQLiteDatabase.CONFLICT_REPLACE)
         notifyChanged()
+        return true
     }
+
+    private fun isValidDate(value: String): Boolean = runCatching {
+        val f = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).apply { isLenient = false }
+        f.parse(value) != null && f.format(f.parse(value)!!) == value
+    }.getOrDefault(false)
 
     fun getWorkerAttendanceForDate(workDate: String): Set<Int> {
         val workerIds = mutableSetOf<Int>()
-        readableDatabase.rawQuery("SELECT worker_id FROM worker_attendance WHERE work_date = ?", arrayOf(workDate)).use { cursor ->
+        readableDatabase.rawQuery("SELECT worker_id FROM worker_attendance WHERE work_date = ? AND status='present'", arrayOf(workDate)).use { cursor ->
             while (cursor.moveToNext()) workerIds.add(cursor.getInt(0))
         }
         return workerIds
+    }
+
+    fun getWorkerAttendanceStatusesForDate(workDate: String): Map<Int, String> {
+        val result = mutableMapOf<Int, String>()
+        readableDatabase.rawQuery("SELECT worker_id,status FROM worker_attendance WHERE work_date=?", arrayOf(workDate)).use { c ->
+            while (c.moveToNext()) result[c.getInt(0)] = c.getString(1)
+        }
+        return result
+    }
+
+    fun getWorkerAttendanceReport(startDate: String, endDate: String, workerType: String = "all", workerId: Int? = null): List<WorkerAttendanceReportRecord> {
+        val result = mutableListOf<WorkerAttendanceReportRecord>()
+        val typeFilter = when (workerType) { "monthly" -> "monthly"; "daily" -> "daily"; else -> "" }
+        val sql = """
+            SELECT w.id,w.name,w.pay_type,COALESCE(c.daily_wage_rate,w.pay_rate),
+                   SUM(CASE WHEN a.status='present' THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.status='absent' THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN a.status='leave' THEN 1 ELSE 0 END)
+            FROM workers w
+            LEFT JOIN worker_contracts c ON c.worker_id=w.id
+            LEFT JOIN worker_attendance a ON a.worker_id=w.id AND a.work_date BETWEEN ? AND ?
+            WHERE w.active=1 AND w.pay_type IN ('monthly','daily')
+              AND (?='' OR w.pay_type=?) AND (? IS NULL OR w.id=?)
+            GROUP BY w.id,w.name,w.pay_type,c.daily_wage_rate,w.pay_rate
+            ORDER BY w.pay_type,w.name
+        """.trimIndent()
+        readableDatabase.rawQuery(sql, arrayOf(startDate,endDate,typeFilter,typeFilter,workerId?.toString(),workerId?.toString())).use { c ->
+            while (c.moveToNext()) {
+                val type=c.getString(2); val rate=c.getDouble(3); val present=c.getInt(4); val absent=c.getInt(5); val leave=c.getInt(6)
+                result.add(WorkerAttendanceReportRecord(c.getInt(0),c.getString(1),type,rate,present,absent,leave,if(type=="daily") present*rate else 0.0))
+            }
+        }
+        return result
     }
 
     fun getWorkerPayroll(startDate: String, endDate: String): List<WorkerPayrollRecord> {
