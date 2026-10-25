@@ -216,6 +216,7 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
     }
     var startDate by remember { mutableStateOf(monthStart) }
     var endDate by remember { mutableStateOf(today) }
+    var attendanceDate by remember { mutableStateOf(today) }
     var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
     val payroll = remember(revision, startDate, endDate) { database.getWorkerPayroll(startDate, endDate) }
@@ -230,7 +231,8 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedTextField(startDate, { startDate = it }, Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(endDate, { endDate = it }, Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-            Text("برای کارمند روزانه، حاضری هر روز را ثبت کنید.", color = TextMuted, fontSize = 11.sp)
+            OutlinedTextField(attendanceDate, { attendanceDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تاریخ حاضری (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+            Text("برای کارمند روزانه، تاریخ حاضری را وارد و ثبت کنید.", color = TextMuted, fontSize = 11.sp)
         }
         if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
         if (payroll.isEmpty()) Text("ابتدا از تنظیمات کارمندان را ثبت کنید.", color = TextMuted)
@@ -244,8 +246,8 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (row.payType == "daily") {
                         Button(onClick = {
-                            database.recordWorkerAttendance(row.workerId, today)
-                            message = "حاضری امروز برای ${row.name} ثبت شد."
+                            database.recordWorkerAttendance(row.workerId, attendanceDate)
+                            message = "حاضری ${attendanceDate} برای ${row.name} ثبت شد."
                         }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("ثبت حاضری امروز", fontSize = 11.sp) }
                     }
                     Button(onClick = {
