@@ -387,3 +387,39 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
         }
     }
 }
+
+@Composable
+internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
+    var filter by remember { mutableStateOf("all") }
+    val revision = database.revision.intValue
+    val workers = remember(revision, filter) {
+        database.getWorkers(includeInactive = true).filter { filter == "all" || it.payType == filter }
+    }
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("فهرست کارمندان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            listOf("all" to "تمام کارمندان", "monthly" to "کارمندان ماهانه", "daily" to "کارمندان روزانه").forEach { (type, label) ->
+                Button(onClick = { filter = type }, modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (filter == type) Burgundy else BurgundySoft, contentColor = if (filter == type) Color.White else BurgundyDark),
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 9.dp)) { Text(label, fontSize = 10.sp) }
+            }
+        }
+        Text("تعداد کارمندان: ${workers.size}", color = TextMuted, fontSize = 12.sp)
+        if (workers.isEmpty()) Text("کارمندی در این فهرست وجود ندارد.", color = TextMuted)
+        workers.forEach { worker ->
+            Row(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp),
+                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    if (worker.phone.isNotBlank()) Text(worker.phone, color = TextMuted, fontSize = 12.sp)
+                    Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = TextDark, fontSize = 12.sp)
+                    if (worker.payType == "daily") Text("قرارداد: ${worker.startDate} تا ${worker.endDate.ifBlank { "بدون تاریخ ختم" }}", color = TextMuted, fontSize = 10.sp)
+                    if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 11.sp)
+                }
+            }
+        }
+    }
+}
