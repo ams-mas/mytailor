@@ -597,6 +597,7 @@ private fun WorkerProfileEditScreen(worker: WorkerRecord, onBack: () -> Unit, on
     var startDate by remember(worker.id) { mutableStateOf(worker.startDate.ifBlank { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }) }
     var endDate by remember(worker.id) { mutableStateOf(worker.endDate) }
     var message by remember(worker.id) { mutableStateOf("") }
+    var active by remember(worker.id) { mutableStateOf(worker.active) }
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -604,6 +605,13 @@ private fun WorkerProfileEditScreen(worker: WorkerRecord, onBack: () -> Unit, on
             TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
         }
         Text("ویرایش معلومات کارمند", color = TextMuted, fontSize = 12.sp)
+        Row(Modifier.fillMaxWidth().background(if (active) BurgundySoft else Color(0xFFF2E8E6), RoundedCornerShape(12.dp)).padding(horizontal = 12.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(if (active) "کارمند فعال" else "کارمند غیرفعال", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(if (active) "در فهرست کارها و حاضری نمایش داده می‌شود." else "در کارها و حاضری نمایش داده نمی‌شود.", color = TextMuted, fontSize = 11.sp)
+            }
+            Switch(checked = active, onCheckedChange = { active = it })
+        }
         OutlinedTextField(name, { name = it; message = "" }, Modifier.fillMaxWidth(), label = { Text("نام کارمند *") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
         OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
         OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
@@ -627,7 +635,7 @@ private fun WorkerProfileEditScreen(worker: WorkerRecord, onBack: () -> Unit, on
                 rate == null || rate < 0 -> message = "مبلغ معتبر وارد کنید."
                 payType == "daily" && !validIsoDate(startDate) -> message = "تاریخ شروع کار معتبر نیست."
                 payType == "daily" && endDate.isNotBlank() && (!validIsoDate(endDate) || endDate < startDate) -> message = "تاریخ ختم معتبر نیست."
-                else -> onSave(worker.copy(name = name.trim(), phone = phone.trim(), address = address.trim(), payType = payType, payRate = rate, startDate = if (payType == "daily") startDate else "", endDate = if (payType == "daily") endDate else ""))
+                else -> onSave(worker.copy(name = name.trim(), phone = phone.trim(), address = address.trim(), payType = payType, payRate = rate, active = active, startDate = if (payType == "daily") startDate else "", endDate = if (payType == "daily") endDate else ""))
             }
         }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره تغییرات") }
         if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
