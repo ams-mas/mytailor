@@ -1521,13 +1521,39 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var showAddCustomer by remember { mutableStateOf(false) }
+    var newCustomerName by remember { mutableStateOf("") }
+    var newCustomerPhone by remember { mutableStateOf("") }
+    var newCustomerAddress by remember { mutableStateOf("") }
+    var addCustomerMessage by remember { mutableStateOf("") }
     val customers = remember(search, refreshKey, database.revision.intValue) { database.getCustomers(search.toEnglishDigits()) }
+    if (showAddCustomer) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("ثبت مشتری جدید", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { showAddCustomer = false }) { Text("برگشت", color = Burgundy) }
+            }
+            OutlinedTextField(newCustomerName, { newCustomerName = it; addCustomerMessage = "" }, Modifier.fillMaxWidth(), label = { Text("نام مشتری *") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(newCustomerPhone, { newCustomerPhone = it }, Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(newCustomerAddress, { newCustomerAddress = it }, Modifier.fillMaxWidth(), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            Button(onClick = {
+                if (database.saveCustomer(newCustomerName, newCustomerPhone, newCustomerAddress)) {
+                    showAddCustomer = false; search = newCustomerName; newCustomerName = ""; newCustomerPhone = ""; newCustomerAddress = ""; addCustomerMessage = ""
+                } else addCustomerMessage = "نام مشتری را وارد کنید."
+            }, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره مشتری") }
+            if (addCustomerMessage.isNotBlank()) Text(addCustomerMessage, color = BurgundyDark, fontSize = 12.sp)
+        }
+        return
+    }
     if (selectedCustomer != null) {
         CustomerOrderHistoryScreen(database, selectedCustomer!!, activeOnly) { selectedCustomer = null }
         return
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp)) {
-        Text("لیست مشتریان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("لیست مشتریان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Button(onClick = { showAddCustomer = true }, colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) { Text("+ مشتری", fontSize = 12.sp) }
+        }
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), label = { Text("جستجو با نام یا شماره تلفن") }, singleLine = true, trailingIcon = {
             if (search.isNotEmpty()) androidx.compose.material3.TextButton(onClick = { search = "" }) { Text("پاک", color = Burgundy) }
             else Text("⌕", color = BurgundyDark, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 12.dp))
