@@ -192,7 +192,10 @@ internal class LocalDatabase(context: Context) :
     fun saveWorkflowStep(name: String, order: Int) {
         val clean = name.trim()
         if (clean.isBlank()) return
-        writableDatabase.insertWithOnConflict("workflow_steps", null, ContentValues().apply { put("step_name", clean); put("step_order", order) }, SQLiteDatabase.CONFLICT_REPLACE)
+        val db = writableDatabase
+        val existingId = db.rawQuery("SELECT id FROM workflow_steps WHERE step_name = ?", arrayOf(clean)).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        if (existingId > 0) db.update("workflow_steps", ContentValues().apply { put("step_order", order) }, "id = ?", arrayOf(existingId.toString()))
+        else db.insertOrThrow("workflow_steps", null, ContentValues().apply { put("step_name", clean); put("step_order", order) })
         notifyChanged()
     }
 
@@ -267,7 +270,7 @@ internal class LocalDatabase(context: Context) :
                     earned = units * worker.payRate
                 }
             }
-            val paid = readableDatabase.rawQuery("SELECT COALESCE(SUM(amount),0) FROM worker_payouts WHERE worker_id=? AND substr(payout_date,1,10) BETWEEN ? AND ?", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getDouble(0) }
+            val paid = readableDatabase.rawQuery("SELECT COALESCE(SUM(amount),0) FROM worker_payouts WHERE worker_id=? AND COALESCE(NULLIF(period_start,''),substr(payout_date,1,10)) <= ? AND COALESCE(NULLIF(period_end,''),substr(payout_date,1,10)) >= ?", arrayOf(worker.id.toString(), end, start)).use { it.moveToFirst(); it.getDouble(0) }
             rows.add(WorkerPayrollRecord(worker.id, worker.name, worker.payType, worker.payRate, units, earned, paid))
         }
         return rows
@@ -325,10 +328,21 @@ internal class LocalDatabase(context: Context) :
             models.forEach { model ->
                 val name = model.name.trim()
                 if (name.isNotBlank()) {
+                    val fields = model.measurements.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }
                     db.insertOrThrow("garment_models", null, ContentValues().apply {
                         put("name", name)
-                        put("measurements_json", JSONArray(model.measurements.map { it.trim() }.filter { it.isNotBlank() }.distinctBy { it.lowercase() }).toString())
+                        put("measurements_json", JSONArray(fields).toString())
                     })
+                    db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", name) }, SQLiteDatabase.CONFLICT_IGNORE)
+                    val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(name)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+                    if (typeId > 0) {
+                        db.delete("measurement_fields", "order_type_id = ?", arrayOf(typeId.toString()))
+                        fields.forEachIndexed { index, field ->
+                            db.insert("measurement_fields", null, ContentValues().apply {
+                                put("order_type_id", typeId); put("field_name", field); put("field_order", index + 1)
+                            })
+                        }
+                    }
                 }
             }
             db.setTransactionSuccessful()
