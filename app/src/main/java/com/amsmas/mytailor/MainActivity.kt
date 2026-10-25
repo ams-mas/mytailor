@@ -1222,8 +1222,15 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
-    var sampleMessage by remember { mutableStateOf("") }
+    var sortMode by remember { mutableStateOf("newest") }
     val customers = remember(search, refreshKey) { database.getCustomers(search.toEnglishDigits()) }
+    val sortedCustomers = remember(customers, sortMode) {
+        when (sortMode) {
+            "orders" -> customers.sortedByDescending { it.orderCount }
+            "active" -> customers.sortedByDescending { it.activeOrderCount }
+            else -> customers
+        }
+    }
     if (selectedCustomer != null) {
         CustomerOrderHistoryScreen(database, selectedCustomer!!, activeOnly) { selectedCustomer = null }
         return
@@ -1234,12 +1241,23 @@ private fun CustomerListScreen(database: LocalDatabase) {
             if (search.isNotEmpty()) androidx.compose.material3.TextButton(onClick = { search = "" }) { Text("پاک", color = Burgundy) }
             else Text("⌕", color = BurgundyDark, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 12.dp))
         }, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-        Text("تعداد مشتریان: ${customers.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 6.dp))
+        Text("فیلتر مشتریان", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp, bottom = 3.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            listOf("newest" to "جدیدترین", "orders" to "بیشترین سفارش", "active" to "سفارش فعال").forEach { (mode, label) ->
+                androidx.compose.material3.TextButton(
+                    onClick = { sortMode = mode },
+                    modifier = Modifier.weight(1f),
+                    contentPadding = PaddingValues(horizontal = 3.dp, vertical = 2.dp),
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (sortMode == mode) Burgundy else BurgundySoft, contentColor = if (sortMode == mode) Color.White else BurgundyDark)
+                ) { Text(label, fontSize = 10.sp, maxLines = 1) }
+            }
+        }
+        Text("تعداد مشتریان: ${customers.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp, bottom = 6.dp))
         if (customers.isEmpty()) {
             Text(if (search.isBlank()) "هنوز سفارشی ثبت نشده است" else "مشتری پیدا نشد", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 28.dp))
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                customers.forEachIndexed { index, customer ->
+                sortedCustomers.forEachIndexed { index, customer ->
                     Column(Modifier.fillMaxWidth().padding(bottom = 5.dp).background(if (index % 2 == 0) Color.White else BurgundySoft.copy(alpha = 0.55f), RoundedCornerShape(10.dp)).padding(7.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text((index + 1).toString().toPersianDigits(), color = Burgundy, fontSize = 10.sp, fontWeight = FontWeight.Bold)
