@@ -750,13 +750,10 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             Text("♧", color = Color.White, fontSize = 22.sp)
         }
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp)) {
-            Text("داشبورد سفارش‌ها", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text("نمای کلی وضعیت سفارش‌های کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
-
             OrderSummaryCard(
                 title = "تعداد کل سفارش‌ها",
                 count = "۰",
-                subtitle = "تمام سفارش‌های ثبت‌شده",
+                subtitle = "",
                 background = Color(0xFFE8EEF9),
                 accent = Color(0xFF2856A6),
                 onClick = onOpenDeliveries
@@ -765,7 +762,7 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             OrderSummaryCard(
                 title = "تعداد سفارش‌های آماده",
                 count = "۰",
-                subtitle = "سفارش‌های آماده برای تحویل",
+                subtitle = "",
                 background = Color(0xFFE4F4E8),
                 accent = Color(0xFF237342),
                 onClick = onOpenDeliveries
@@ -774,25 +771,10 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             OrderSummaryCard(
                 title = "تعداد سفارش‌های تکمیل‌نشده",
                 count = "۰",
-                subtitle = "سفارش‌هایی که هنوز آماده نیستند",
+                subtitle = "",
                 background = Color(0xFFFFE9E6),
                 accent = Color(0xFFB33A32),
                 onClick = onOpenDeliveries
-            )
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = onOpenDeliveries,
-                modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp),
-                colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
-            ) {
-                Text("مشاهده سفارش‌ها", fontWeight = FontWeight.Bold)
-            }
-            Text(
-                "توجه: ثبت و ذخیره سفارش‌ها هنوز به دیتابیس وصل نشده است؛ شمارنده‌ها فعلاً صفر هستند.",
-                color = TextMuted,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 12.dp)
             )
             Spacer(Modifier.height(24.dp))
         }
