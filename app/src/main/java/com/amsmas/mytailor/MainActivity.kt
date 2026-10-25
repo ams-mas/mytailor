@@ -1503,16 +1503,26 @@ private fun MeasurementEditorScreen(
             Text("برای این سفارش هنوز سایزی ثبت نشده است.", color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
         } else {
             Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
-                values.keys.toList().forEach { key ->
-                    OutlinedTextField(
-                        value = values[key].orEmpty(),
-                        onValueChange = { values[key] = it },
-                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
-                        label = { Text(key) },
-                        singleLine = true,
-                        colors = appFieldColors(),
-                        shape = RoundedCornerShape(16.dp)
-                    )
+                values.keys.toList().chunked(3).forEach { rowKeys ->
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        rowKeys.forEach { key ->
+                            OutlinedTextField(
+                                value = values[key].orEmpty(),
+                                onValueChange = { values[key] = it },
+                                modifier = Modifier.weight(1f).padding(bottom = 10.dp),
+                                label = { Text(key, maxLines = 1) },
+                                singleLine = true,
+                                colors = appFieldColors(),
+                                shape = RoundedCornerShape(16.dp)
+                            )
+                        }
+                        repeat(3 - rowKeys.size) {
+                            Spacer(Modifier.weight(1f))
+                        }
+                    }
                 }
             }
         }
