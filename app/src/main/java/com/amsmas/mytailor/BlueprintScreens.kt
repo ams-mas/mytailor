@@ -344,7 +344,8 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
         worker.id to (pendingStatuses[worker.id] ?: statuses[worker.id] ?: "")
     }
     val presentCount = selectedStatuses.values.count { it == "present" }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+    Column(Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("مرکز حاضری کارمندان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -408,6 +409,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
                 }
             }
         }
+        }
         Button(onClick = {
             if (attendanceDate > today) {
                 message = "ثبت حاضری برای تاریخ آینده مجاز نیست."
@@ -427,12 +429,12 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
                     else "حاضری ${isoDateToJalali(attendanceDate)} برای ${eligibleWorkers.size} کارمند ثبت شد."
                 pendingStatuses = emptyMap()
             }
-        }, modifier = Modifier.fillMaxWidth(), enabled = !futureDate && eligibleWorkers.isNotEmpty(),
+        }, modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp), enabled = !futureDate && eligibleWorkers.isNotEmpty(),
             colors = ButtonDefaults.buttonColors(containerColor = Burgundy, contentColor = Color.White),
             shape = RoundedCornerShape(14.dp)) {
             Text("ثبت حاضری این روز", modifier = Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.Bold)
         }
-        Text("ابتدا تاریخ را انتخاب کن، سپس وضعیت هر کارمند را تعیین کن و در پایان «ثبت حاضری این روز» را بزن.", color = TextMuted, fontSize = 11.sp)
+        Text("وضعیت‌ها را انتخاب کن و سپس ثبت حاضری را بزن.", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(bottom = 2.dp))
     }
 }
 
