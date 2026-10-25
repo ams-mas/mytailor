@@ -983,6 +983,8 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     var customerName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
     var address by remember { mutableStateOf("") }
+    var customerMenuExpanded by remember { mutableStateOf(false) }
+    val savedCustomers = remember(database.revision.intValue) { database.getCustomers() }
     var notes by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -1010,6 +1012,25 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
             }
         }
         Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth()) {
+            Button(onClick = { customerMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(12.dp)) {
+                Text(if (savedCustomers.isEmpty()) "انتخاب مشتری ثبت‌شده (فهرست خالی است)" else "انتخاب مشتری ثبت‌شده  ▾")
+            }
+            androidx.compose.material3.DropdownMenu(expanded = customerMenuExpanded, onDismissRequest = { customerMenuExpanded = false }) {
+                savedCustomers.forEach { savedCustomer ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(savedCustomer.name + if (savedCustomer.phone.isBlank()) "" else " · " + savedCustomer.phone) },
+                        onClick = {
+                            customerName = savedCustomer.name
+                            phone = savedCustomer.phone
+                            address = savedCustomer.address
+                            customerMenuExpanded = false
+                            message = ""
+                        }
+                    )
+                }
+            }
+        }
         OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
