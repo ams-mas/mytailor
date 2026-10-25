@@ -71,6 +71,7 @@ internal class LocalDatabase(context: Context) :
             // Versions below 6 create the current attendance schema during the same upgrade.
             if (oldVersion >= 6) db.execSQL("ALTER TABLE worker_attendance ADD COLUMN status TEXT NOT NULL DEFAULT 'present'")
             createWorkerContractsTable(db)
+            db.execSQL("INSERT OR IGNORE INTO worker_contracts (worker_id,start_date,end_date,daily_wage_rate) SELECT id,'1970-01-01',NULL,pay_rate FROM workers WHERE pay_type='daily'")
         }
     }
 
