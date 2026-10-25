@@ -757,9 +757,10 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     var modelMenuExpanded by remember { mutableStateOf(false) }
     val models = remember(database) { database.getGarmentModels() }
     val selectedModel = models.firstOrNull { it.name == selectedModelName }
-    val total = price.toDoubleOrNull() ?: 0.0
-    val payment = paid.toDoubleOrNull() ?: 0.0
+    val total = price.toEnglishDigits().toDoubleOrNull() ?: 0.0
+    val payment = paid.toEnglishDigits().toDoubleOrNull() ?: 0.0
     val remaining = (total - payment).coerceAtLeast(0.0)
+    val remainingText = (if (remaining % 1.0 == 0.0) remaining.toLong().toString() else remaining.toString()).toPersianDigits()
     val fieldShape = RoundedCornerShape(14.dp)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -832,7 +833,7 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
         OutlinedTextField(value = price, onValueChange = { price = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("قیمت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = paid, onValueChange = { paid = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("پرداخت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
-        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()}", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().background(if (remaining > 0) Color(0xFFFFE9E6) else Color(0xFFE4F4E8), RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 16.dp))
+        Text("باقیمانده: $remainingText", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().background(if (remaining > 0) Color(0xFFFFE9E6) else Color(0xFFE4F4E8), RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 16.dp))
         if (message.isNotBlank()) Text(message, color = Color(0xFFB33A32), fontSize = 13.sp)
         Button(onClick = {
             when {
