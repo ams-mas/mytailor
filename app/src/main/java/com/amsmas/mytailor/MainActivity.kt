@@ -1303,28 +1303,34 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
         if (orders.isEmpty()) Text("سفارشی برای نمایش وجود ندارد.", color = TextMuted, modifier = Modifier.padding(top = 10.dp))
         else {
             Text("تعداد سفارش‌های نمایش‌داده‌شده: ${orders.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp))
+            var expandedOrderId by remember { mutableIntStateOf(-1) }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(vertical = 9.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("شماره", Modifier.weight(0.65f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("تاریخ سفارش", Modifier.weight(1.25f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("مدل سفارش", Modifier.weight(1.15f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("قیمت", Modifier.weight(0.85f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("پرداخت", Modifier.weight(0.85f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                    Text("باقیمانده", Modifier.weight(0.9f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
-                }
-                orders.forEach { order ->
-                    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp, vertical = 8.dp)) {
-                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("#${order.id.toString().toPersianDigits()}", Modifier.weight(0.65f), color = BurgundyDark, fontSize = 8.sp)
-                            Text(order.registeredAt.replace("T", " ").take(10).toPersianDigits().ifBlank { "—" }, Modifier.weight(1.25f), color = TextDark, fontSize = 8.sp)
-                            Text(order.garmentModel.ifBlank { "—" }, Modifier.weight(1.15f), color = TextDark, fontSize = 8.sp)
-                            Text(formatReceiptAmount(order.price), Modifier.weight(0.85f), color = TextDark, fontSize = 8.sp)
-                            Text(formatReceiptAmount(order.paid + order.deposit), Modifier.weight(0.85f), color = Color(0xFF237342), fontSize = 8.sp)
-                            Text(formatReceiptAmount(order.remaining), Modifier.weight(0.9f), color = if (order.remaining > 0) Color(0xFFB33A32) else TextMuted, fontSize = 8.sp)
+                orders.chunked(2).forEach { rowOrders ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        rowOrders.forEach { order ->
+                            Column(Modifier.weight(1f).padding(bottom = 8.dp).background(if (expandedOrderId == order.id) BurgundySoft else Color.White, RoundedCornerShape(10.dp)).clickable { expandedOrderId = if (expandedOrderId == order.id) -1 else order.id }.padding(10.dp)) {
+                                Text(order.garmentModel.ifBlank { "مدل لباس نامشخص" }, color = BurgundyDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
+                                Text("سفارش #${order.id.toString().toPersianDigits()}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
+                                Text(if (expandedOrderId == order.id) "بستن جزئیات ▲" else "مشاهده اندازه‌ها ▼", color = Burgundy, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+                                if (expandedOrderId == order.id) {
+                                    androidx.compose.material3.HorizontalDivider(color = BorderSoft, modifier = Modifier.padding(vertical = 6.dp))
+                                    Text("اندازه‌ها و مشخصات:", color = BurgundyDark, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                                    val measurementItems = runCatching {
+                                        val json = org.json.JSONObject(order.measurementsJson)
+                                        json.keys().asSequence().map { key -> key to json.optString(key) }.filter { it.second.isNotBlank() }.toList()
+                                    }.getOrDefault(emptyList())
+                                    if (measurementItems.isEmpty()) Text("اندازه‌ای ثبت نشده است.", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                                    else measurementItems.forEach { (key, value) -> Text("$key: $value", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp)) }
+                                    if (order.notes.isNotBlank()) Text("توضیحات: ${order.notes}", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
+                                    Text("تاریخ سفارش: ${order.registeredAt.replace('T', ' ').take(10).toPersianDigits()}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+                                    Text("قیمت: ${formatReceiptAmount(order.price)}", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                                    Text("پرداخت‌شده: ${formatReceiptAmount(order.paid + order.deposit)}", color = Color(0xFF237342), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                                    Text("باقی‌مانده: ${formatReceiptAmount(order.remaining)}", color = if (order.remaining > 0) Color(0xFFB33A32) else TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                                }
+                            }
                         }
-                        Text("تحویل: ${order.deliveryDate} • وضعیت: ${if (order.status == "ready") "آماده" else "در جریان"}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
+                        if (rowOrders.size == 1) Spacer(Modifier.weight(1f))
                     }
-                    Spacer(Modifier.height(5.dp))
                 }
             }
         }
