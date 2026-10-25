@@ -11,6 +11,8 @@ import org.json.JSONObject
  * On-device database. Records remain available after the app is closed or the phone restarts.
  * Backup/export and restore/import can be added later without changing the app's data model.
  */
+internal data class CustomerSummary(val name: String, val phone: String, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
+
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
 
@@ -124,6 +126,36 @@ internal class LocalDatabase(context: Context) :
             put("remaining", (order.price - order.deposit - order.paid).coerceAtLeast(0.0))
             put("status", "incomplete")
         })
+    }
+
+    fun getCustomers(search: String = ""): List<CustomerSummary> {
+        val result = mutableListOf<CustomerSummary>()
+        val term = search.trim()
+        val where = if (term.isBlank()) "" else "WHERE customer_name LIKE ? OR phone LIKE ?"
+        val args = if (term.isBlank()) null else arrayOf("%$term%", "%$term%")
+        val sql = """
+            SELECT customer_name, phone, COUNT(*) AS order_count,
+                   COALESCE(SUM(remaining), 0) AS total_remaining,
+                   (SELECT o2.delivery_date FROM orders o2
+                    WHERE o2.customer_name = orders.customer_name AND o2.phone = orders.phone
+                    ORDER BY o2.id DESC LIMIT 1) AS last_delivery_date
+            FROM orders
+            $where
+            GROUP BY customer_name, phone
+            ORDER BY MAX(id) DESC
+        """.trimIndent()
+        readableDatabase.rawQuery(sql, args).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(CustomerSummary(
+                    name = cursor.getString(0) ?: "",
+                    phone = cursor.getString(1) ?: "",
+                    orderCount = cursor.getInt(2),
+                    remaining = cursor.getDouble(3),
+                    lastDeliveryDate = cursor.getString(4) ?: ""
+                ))
+            }
+        }
+        return result
     }
 
     fun getOrderCounts(): Triple<Int, Int, Int> {
