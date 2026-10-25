@@ -526,6 +526,7 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
 internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
     var filter by remember { mutableStateOf("all") }
     var sortBy by remember { mutableStateOf("name_asc") }
+    var sortMenuExpanded by remember { mutableStateOf(false) }
     var searchText by remember { mutableStateOf("") }
     var appliedSearch by remember { mutableStateOf("") }
     var editingWorker by remember { mutableStateOf<WorkerRecord?>(null) }
@@ -575,9 +576,22 @@ internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
                     contentPadding = PaddingValues(horizontal = 4.dp, vertical = 7.dp)) { Text(label, fontSize = 10.sp) }
             }
         }
-        Text("مرتب‌سازی", color = TextDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-        androidx.compose.material3.OutlinedButton(onClick = { sortBy = when (sortBy) { "pay_high" -> "pay_low"; "pay_low" -> "name_asc"; "name_asc" -> "name_desc"; "name_desc" -> "hire_old"; "hire_old" -> "hire_new"; else -> "pay_high" } }, modifier = Modifier.fillMaxWidth()) {
-            Text(when (sortBy) { "pay_high" -> "معاش: بیشترین اول"; "pay_low" -> "معاش: کمترین اول"; "name_desc" -> "نام: نزولی"; "hire_old" -> "تاریخ استخدام: قدیمی‌تر اول"; "hire_new" -> "تاریخ استخدام: جدیدتر اول"; else -> "نام: الف تا ی" }, fontSize = 12.sp)
+        Box(Modifier.fillMaxWidth()) {
+            androidx.compose.material3.OutlinedButton(onClick = { sortMenuExpanded = true }, modifier = Modifier.fillMaxWidth()) {
+                Text("مرتب‌سازی: " + when (sortBy) { "pay_high" -> "معاش: بیشترین اول"; "pay_low" -> "معاش: کمترین اول"; "name_desc" -> "نام: ی تا الف"; "hire_old" -> "تاریخ استخدام: قدیمی‌تر اول"; "hire_new" -> "تاریخ استخدام: جدیدتر اول"; else -> "نام: الف تا ی" } + "  ▾", fontSize = 12.sp)
+            }
+            DropdownMenu(expanded = sortMenuExpanded, onDismissRequest = { sortMenuExpanded = false }) {
+                listOf(
+                    "pay_high" to "معاش: بیشترین اول",
+                    "pay_low" to "معاش: کمترین اول",
+                    "name_asc" to "نام: الف تا ی",
+                    "name_desc" to "نام: ی تا الف",
+                    "hire_old" to "تاریخ استخدام: قدیمی‌تر اول",
+                    "hire_new" to "تاریخ استخدام: جدیدتر اول"
+                ).forEach { (key, label) ->
+                    DropdownMenuItem(text = { Text(label) }, onClick = { sortBy = key; sortMenuExpanded = false })
+                }
+            }
         }
         Text("تعداد کارمندان: ${workers.size}", color = TextMuted, fontSize = 12.sp)
         if (workers.isEmpty()) Text("کارمندی مطابق جستجو پیدا نشد.", color = TextMuted)
