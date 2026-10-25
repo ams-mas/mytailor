@@ -1322,10 +1322,6 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                                     if (measurementItems.isEmpty()) Text("اندازه‌ای ثبت نشده است.", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
                                     else measurementItems.forEach { (key, value) -> Text("$key: $value", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp)) }
                                     if (order.notes.isNotBlank()) Text("توضیحات: ${order.notes}", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
-                                    Text("تاریخ سفارش: ${order.registeredAt.replace('T', ' ').take(10).toPersianDigits()}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
-                                    Text("قیمت: ${formatReceiptAmount(order.price)}", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
-                                    Text("پرداخت‌شده: ${formatReceiptAmount(order.paid + order.deposit)}", color = Color(0xFF237342), fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
-                                    Text("باقی‌مانده: ${formatReceiptAmount(order.remaining)}", color = if (order.remaining > 0) Color(0xFFB33A32) else TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
                                 }
                             }
                         }
