@@ -1406,6 +1406,11 @@ internal fun jalaliDateToIso(jalali: String): String {
     val g = jalaliToGregorian(jy, jm, jd)
     return "${g.first}-${g.second.toString().padStart(2,'0')}-${g.third.toString().padStart(2,'0')}"
 }
+internal fun currentJalaliMonthStartIso(): String {
+    val todayIso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
+    val jalali = isoDateToJalali(todayIso).toEnglishDigits().split("/")
+    return if (jalali.size == 3) jalaliDateToIso("${jalali[0]}/${jalali[1]}/01") else todayIso
+}
 
 private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + (ch - '0')).toChar() else ch }.joinToString("")
 
