@@ -750,7 +750,6 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     var deliveryDate by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
     var price by remember { mutableStateOf("") }
-    var deposit by remember { mutableStateOf("") }
     var paid by remember { mutableStateOf("") }
     var selectedModelName by remember { mutableStateOf("") }
     var measurements by remember { mutableStateOf(mapOf<String, String>()) }
@@ -759,9 +758,8 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     val models = remember(database) { database.getGarmentModels() }
     val selectedModel = models.firstOrNull { it.name == selectedModelName }
     val total = price.toDoubleOrNull() ?: 0.0
-    val advance = deposit.toDoubleOrNull() ?: 0.0
     val payment = paid.toDoubleOrNull() ?: 0.0
-    val remaining = (total - advance - payment).coerceAtLeast(0.0)
+    val remaining = (total - payment).coerceAtLeast(0.0)
     val fieldShape = RoundedCornerShape(14.dp)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
@@ -833,10 +831,8 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = price, onValueChange = { price = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("قیمت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = deposit, onValueChange = { deposit = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("بیعانه") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
-        Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = paid, onValueChange = { paid = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("پرداخت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
-        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()}", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 14.dp))
+        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()}", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.fillMaxWidth().background(if (remaining > 0) Color(0xFFFFE9E6) else Color(0xFFE4F4E8), RoundedCornerShape(14.dp)).padding(horizontal = 16.dp, vertical = 16.dp))
         if (message.isNotBlank()) Text(message, color = Color(0xFFB33A32), fontSize = 13.sp)
         Button(onClick = {
             when {
@@ -844,10 +840,10 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 selectedModel == null -> message = "مدل لباس را انتخاب کنید."
                 deliveryDate.isBlank() -> message = "تاریخ تحویل را انتخاب کنید."
                 total <= 0 -> message = "قیمت را وارد کنید."
-                advance < 0 || payment < 0 || advance + payment > total -> message = "بیعانه و پرداخت را بررسی کنید؛ مجموع آن‌ها نباید از قیمت بیشتر باشد."
+                payment < 0 || payment > total -> message = "مقدار پرداخت نباید از قیمت بیشتر باشد."
                 else -> {
                     runCatching {
-                        database.addOrder(TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, advance, payment))
+                        database.addOrder(TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment))
                     }.onSuccess { onSave() }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
                 }
             }
