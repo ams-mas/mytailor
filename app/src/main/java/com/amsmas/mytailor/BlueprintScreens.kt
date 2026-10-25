@@ -464,9 +464,51 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
                     Text("مجموع معاش کسب‌شده: ${blueprintMoney(row.wageTotal)} افغانی", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.Bold)
                 }
                 if (expandedWorkerId == row.workerId) {
-                    Text("جزئیات گزارش", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 12.sp)
-                    Text("روزهای حاضر، غایب و رخصتی بالا از سوابق ثبت‌شده در بازه انتخاب‌شده محاسبه شده‌اند.", color = TextMuted, fontSize = 11.sp)
-                    Text("برای معاش ماهانه: معاش پایه ÷ ۳۰ × روزهای غیابت. برای معاش روزانه: روزهای حاضر × نرخ روزانه.", color = TextMuted, fontSize = 11.sp)
+                    val jalaliParts = isoDateToJalali(startDate).toEnglishDigits().split("/")
+                    val jalaliYear = jalaliParts.getOrNull(0)?.toIntOrNull() ?: 1405
+                    val jalaliMonth = jalaliParts.getOrNull(1)?.toIntOrNull() ?: 1
+                    val monthLabel = listOf("حمل","ثور","جوزا","سرطان","اسد","سنبله","میزان","عقرب","قوس","جدی","دلو","حوت").getOrNull(jalaliMonth - 1) ?: ""
+                    val daysInMonth = remember(jalaliYear, jalaliMonth) {
+                        (1..31).count { day ->
+                            val candidate = "${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${day.toString().padStart(2,'0')}"
+                            val iso = jalaliDateToIso(candidate)
+                            isoDateToJalali(iso).toEnglishDigits() == candidate
+                        }
+                    }
+                    val monthStartIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/01")
+                    val monthEndIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${daysInMonth.toString().padStart(2,'0')}")
+                    val monthStatuses = remember(revision, row.workerId, monthStartIso, monthEndIso) {
+                        database.getWorkerAttendanceStatusesForWorker(row.workerId, monthStartIso, monthEndIso)
+                    }
+                    Text("تقویم حاضری: $monthLabel ${jalaliYear.toString().toPersianDigits()}", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        listOf(Color(0xFF287447) to "حاضر", Color(0xFFB33A32) to "غایب", Color(0xFFD9A326) to "رخصتی", Color(0xFFE9E2DE) to "ثبت‌نشده").forEach { (color, label) ->
+                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                                Box(Modifier.size(9.dp).background(color, RoundedCornerShape(3.dp)))
+                                Text(label, color = TextMuted, fontSize = 9.sp)
+                            }
+                        }
+                    }
+                    (1..daysInMonth).toList().chunked(7).forEach { week ->
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                            week.forEach { day ->
+                                val dayIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${day.toString().padStart(2,'0')}")
+                                val dayStatus = monthStatuses[dayIso]
+                                val dayColor = when(dayStatus) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); "leave" -> Color(0xFFD9A326); else -> Color(0xFFE9E2DE) }
+                                Box(Modifier.weight(1f).aspectRatio(1f).background(dayColor, RoundedCornerShape(7.dp)).clickable {
+                                    val nextStatus = when(dayStatus) { null -> "present"; "present" -> "absent"; "absent" -> "leave"; else -> "present" }
+                                    if (database.setWorkerAttendanceStatus(row.workerId, dayIso, nextStatus)) {
+                                        expandedWorkerId = row.workerId
+                                    }
+                                }, contentAlignment = Alignment.Center) {
+                                    Text(day.toString().toPersianDigits(), color = if(dayStatus == null) BurgundyDark else Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                }
+                            }
+                            repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
+                        }
+                    }
+                    Text("برای اصلاح وضعیت، روی روز کلیک کن: ثبت‌نشده ← حاضر ← غایب ← رخصتی.", color = TextMuted, fontSize = 10.sp)
+                    Text("معاش ماهانه: معاش پایه ÷ ۳۰ × روزهای غیابت. معاش روزانه: روزهای حاضر × نرخ روزانه.", color = TextMuted, fontSize = 11.sp)
                 }
             }
         }
