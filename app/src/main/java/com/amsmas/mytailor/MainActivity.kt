@@ -296,6 +296,9 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     var showGarmentModels by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
+    var showWorkerManagement by remember { mutableStateOf(false) }
+    var showWorkflowSettings by remember { mutableStateOf(false) }
+    var showProductionWorkflow by remember { mutableStateOf(false) }
     var showOrderForm by remember { mutableStateOf(false) }
     var savedOrderForReceipt by remember { mutableStateOf<TailorOrder?>(null) }
     var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
@@ -317,8 +320,11 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
             when {
                 savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
+                showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
+                showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
+                showProductionWorkflow -> ProductionWorkflowScreen(database = database, onBack = { showProductionWorkflow = false })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
-                selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database)
+                selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database, onOpenWorkflow = { showProductionWorkflow = true })
                 selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
                 selected == MainTab.REPORTS -> ReportsScreen(database = database)
@@ -357,6 +363,8 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                             val settingsItems = listOf(
                                 Triple("تنظیمات کارگاه", "⚙", "workshop"),
+                                Triple("مدیریت کارمندان و معاش", "♙", "workers"),
+                                Triple("مراحل تولید سفارش", "⇢", "workflow"),
                                 Triple("پروفایل و معلومات کارگاه", "▣", "profile"),
                                 Triple("پشتیبان‌گیری و بازیابی", "⟳", "backup"),
                                 Triple("ظاهر برنامه", "◐", "appearance"),
@@ -378,6 +386,8 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                                         }, Modifier.weight(1f)) {
                                             when (item.third) {
                                                 "workshop" -> showWorkshopSettings = true
+                                                "workers" -> showWorkerManagement = true
+                                                "workflow" -> showWorkflowSettings = true
                                                 "backup" -> showBackupRestore = true
                                                 else -> selectedSettingsCategory = item.first
                                             }
@@ -449,6 +459,11 @@ private fun ReportsScreen(database: LocalDatabase) {
 
 @Composable
 private fun FinanceScreen(database: LocalDatabase) {
+    var showPayroll by remember { mutableStateOf(false) }
+    if (showPayroll) {
+        WorkerPayrollScreen(database = database, onBack = { showPayroll = false })
+        return
+    }
     val revision = database.revision.intValue
     var period by remember { mutableStateOf("month") }
     var startDate by remember { mutableStateOf("") }
@@ -472,6 +487,10 @@ private fun FinanceScreen(database: LocalDatabase) {
                 Text("مدیریت مالی", color = BurgundyDark, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("درآمد، پرداخت‌ها و قرض مشتریان", color = TextMuted, fontSize = 13.sp)
             }
+        }
+
+        Button(onClick = { showPayroll = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(12.dp)) {
+            Text("معاش و پرداخت کارمندان  ›", fontWeight = FontWeight.SemiBold)
         }
 
         Column(
@@ -1425,15 +1444,21 @@ private fun RecentOrder(name: String, work: String, date: String, status: String
 }
 
 @Composable
-private fun ActiveOrdersScreen(database: LocalDatabase) {
+private fun ActiveOrdersScreen(database: LocalDatabase, onOpenWorkflow: () -> Unit = {}) {
     var search by remember { mutableStateOf("") }
     var refreshKey by remember { mutableIntStateOf(0) }
     var pendingOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
     val orders = remember(search, refreshKey, database.revision.intValue) { database.getActiveOrders(search) }
 
     Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
-        Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("سفارش‌هایی که هنوز تکمیل نشده‌اند", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("سفارش‌هایی که هنوز تکمیل نشده‌اند", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            TextButton(onClick = onOpenWorkflow) { Text("مراحل تولید", color = Burgundy, fontSize = 12.sp) }
+        }
+        Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = search,
             onValueChange = { search = it },
@@ -1554,6 +1579,9 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
     val orders = remember(customer.name, customer.phone, activeOnly, refreshKey, database.revision.intValue) {
         database.getCustomerOrders(customer.name, customer.phone, activeOnly)
     }
+    val measurementHistory = remember(customer.name, customer.phone, database.revision.intValue) {
+        database.getCustomerMeasurementHistory(customer.name, customer.phone)
+    }
     if (selectedOrder != null) {
         MeasurementEditorScreen(
             order = selectedOrder!!,
@@ -1664,6 +1692,20 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
                     Text("باقی‌مانده", color = TextMuted, fontSize = 10.sp)
                     Text(formatReceiptAmount(customer.remaining), color = if (customer.remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        if (measurementHistory.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("تاریخچه اندازه‌گیری", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                measurementHistory.take(20).forEach { item ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.fieldName + " · " + item.orderType, color = TextDark, fontSize = 12.sp)
+                            Text(item.recordedAt, color = TextMuted, fontSize = 10.sp)
+                        }
+                        Text(item.value, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
