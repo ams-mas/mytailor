@@ -750,19 +750,82 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             Text("♧", color = Color.White, fontSize = 22.sp)
         }
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp)) {
-            Text("گزارش کوتاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-            Text("برنامه تحویل لباس‌ها", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
-            DeliveryReportCard("امروز", "سفارش‌هایی که امروز باید تحویل بدهی", "۰", Color(0xFF702027), Modifier.fillMaxWidth(), onOpenDeliveries)
+            Text("داشبورد سفارش‌ها", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("نمای کلی وضعیت سفارش‌های کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 16.dp))
+
+            OrderSummaryCard(
+                title = "تعداد کل سفارش‌ها",
+                count = "۰",
+                subtitle = "تمام سفارش‌های ثبت‌شده",
+                background = Color(0xFFE8EEF9),
+                accent = Color(0xFF2856A6),
+                onClick = onOpenDeliveries
+            )
             Spacer(Modifier.height(10.dp))
-            DeliveryReportCard("فردا", "سفارش‌هایی که فردا موعد تحویل دارند", "۰", Color(0xFFB7791F), Modifier.fillMaxWidth(), onOpenDeliveries)
+            OrderSummaryCard(
+                title = "تعداد سفارش‌های آماده",
+                count = "۰",
+                subtitle = "سفارش‌های آماده برای تحویل",
+                background = Color(0xFFE4F4E8),
+                accent = Color(0xFF237342),
+                onClick = onOpenDeliveries
+            )
             Spacer(Modifier.height(10.dp))
-            DeliveryReportCard("تا آخر هفته", "مجموع سفارش‌های موعد تحویل این هفته", "۰", Color(0xFF2870D8), Modifier.fillMaxWidth(), onOpenDeliveries)
+            OrderSummaryCard(
+                title = "تعداد سفارش‌های تکمیل‌نشده",
+                count = "۰",
+                subtitle = "سفارش‌هایی که هنوز آماده نیستند",
+                background = Color(0xFFFFE9E6),
+                accent = Color(0xFFB33A32),
+                onClick = onOpenDeliveries
+            )
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onOpenDeliveries, modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
-                Text("مشاهده برنامه تحویل", fontWeight = FontWeight.Bold)
+            Button(
+                onClick = onOpenDeliveries,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
+            ) {
+                Text("مشاهده سفارش‌ها", fontWeight = FontWeight.Bold)
             }
-            Text("تعدادها فعلاً نمونهٔ خالی هستند؛ پس از اتصال سفارش‌ها به دیتابیس، خودکار محاسبه می‌شوند.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 12.dp))
+            Text(
+                "توجه: ثبت و ذخیره سفارش‌ها هنوز به دیتابیس وصل نشده است؛ شمارنده‌ها فعلاً صفر هستند.",
+                color = TextMuted,
+                fontSize = 12.sp,
+                modifier = Modifier.padding(top = 12.dp)
+            )
             Spacer(Modifier.height(24.dp))
+        }
+    }
+}
+
+@Composable
+private fun OrderSummaryCard(
+    title: String,
+    count: String,
+    subtitle: String,
+    background: Color,
+    accent: Color,
+    onClick: () -> Unit
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(background, RoundedCornerShape(16.dp))
+            .clickable(onClick = onClick)
+            .padding(horizontal = 18.dp, vertical = 17.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = accent, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text(subtitle, color = TextDark, fontSize = 12.sp, modifier = Modifier.padding(top = 5.dp))
+        }
+        Spacer(Modifier.width(12.dp))
+        Box(
+            modifier = Modifier.size(58.dp).background(Color.White.copy(alpha = 0.85f), CircleShape),
+            contentAlignment = Alignment.Center
+        ) {
+            Text(count, color = accent, fontSize = 25.sp, fontWeight = FontWeight.ExtraBold)
         }
     }
 }
