@@ -4,6 +4,7 @@ import android.content.ContentValues
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
+import androidx.compose.runtime.mutableIntStateOf
 import org.json.JSONArray
 import org.json.JSONObject
 
@@ -17,6 +18,10 @@ internal data class DeliveryOrder(val id: Int, val customerName: String, val pho
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
+
+    // Compose screens observe this counter to refresh database-backed lists immediately.
+    val revision = mutableIntStateOf(0)
+    private fun notifyChanged() { revision.intValue++ }
 
     override fun onCreate(db: SQLiteDatabase) {
         db.execSQL("CREATE TABLE workshop_skills (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE)")
@@ -54,6 +59,7 @@ internal class LocalDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+        notifyChanged()
     }
 
     fun getGarmentModels(): List<GarmentModel> {
@@ -85,6 +91,7 @@ internal class LocalDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+        notifyChanged()
     }
 
     fun getTailors(): List<TailorRecord> {
@@ -108,6 +115,7 @@ internal class LocalDatabase(context: Context) :
             put("skills_json", JSONArray(tailor.skills).toString())
         }
         writableDatabase.insertOrThrow("tailors", null, values)
+        notifyChanged()
     }
 
 
@@ -190,6 +198,7 @@ internal class LocalDatabase(context: Context) :
             db.endTransaction()
         }
         if (added > 0) notifyChanged()
+        if (added > 0) notifyChanged()
         return added
     }
 
@@ -245,10 +254,12 @@ internal class LocalDatabase(context: Context) :
             "customer_name = ? AND phone = ?",
             arrayOf(oldName, oldPhone)
         )
+        notifyChanged()
     }
 
     fun deleteCustomerOrders(name: String, phone: String) {
         writableDatabase.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
+        notifyChanged()
     }
 
     fun getActiveOrders(search: String = ""): List<DeliveryOrder> {
@@ -324,6 +335,7 @@ internal class LocalDatabase(context: Context) :
                 put("status", "delivered")
             }, "id = ? AND status = 'ready'", arrayOf(orderId.toString()))
             db.setTransactionSuccessful()
+            notifyChanged()
             return true
         } finally {
             db.endTransaction()
@@ -332,6 +344,7 @@ internal class LocalDatabase(context: Context) :
 
     fun updateOrderStatus(orderId: Int, status: String) {
         writableDatabase.update("orders", ContentValues().apply { put("status", status) }, "id = ?", arrayOf(orderId.toString()))
+        notifyChanged()
     }
 
     fun updateOrderMeasurements(orderId: Int, measurements: Map<String, String>) {
@@ -339,6 +352,7 @@ internal class LocalDatabase(context: Context) :
             put("measurements_json", JSONObject(measurements).toString())
         }
         writableDatabase.update("orders", values, "id = ?", arrayOf(orderId.toString()))
+        notifyChanged()
     }
 
     fun getOrderCounts(): Triple<Int, Int, Int> {
@@ -429,9 +443,10 @@ internal class LocalDatabase(context: Context) :
         } finally {
             db.endTransaction()
         }
+        notifyChanged()
     }
 
-    companion object {
+    companion {
         private const val DATABASE_NAME = "mytailor_local.db"
         private const val DATABASE_VERSION = 4
     }
