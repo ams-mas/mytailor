@@ -78,8 +78,8 @@ internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit)
             OutlinedTextField(payRate, { payRate = it }, Modifier.fillMaxWidth(), label = { Text("مبلغ معاش / نرخ هر مرحله (افغانی)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             if (payType == "daily") {
                 Text("قرارداد کارمند روزانه", color = BurgundyDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-                OutlinedTextField(startDate, { startDate = it }, Modifier.fillMaxWidth(), label = { Text("تاریخ شروع کار (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-                OutlinedTextField(endDate, { endDate = it }, Modifier.fillMaxWidth(), label = { Text("تاریخ ختم کار (اختیاری؛ خالی = ادامه دارد)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+                JalaliDateInput(startDate, { startDate = it }, "تاریخ شروع کار")
+                JalaliDateInput(endDate, { endDate = it }, "تاریخ ختم کار (اختیاری)", allowBlank = true)
             }
             Text(when (payType) {
                 "daily" -> "محاسبه بر اساس روزهای حاضری ثبت‌شده انجام می‌شود."
@@ -247,8 +247,8 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
                         contentPadding = PaddingValues(horizontal = 5.dp, vertical = 9.dp)) { Text(label, fontSize = 12.sp) }
                 }
             }
-            OutlinedTextField(startDate, { startDate = it }, Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(endDate, { endDate = it }, Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+            JalaliDateInput(startDate, { startDate = it }, "از تاریخ")
+            JalaliDateInput(endDate, { endDate = it }, "تا تاریخ")
             Text("نوع کارمند را انتخاب کنید و مقدار پرداخت را برای هر نفر جداگانه وارد کنید.", color = TextMuted, fontSize = 11.sp)
         }
         Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(20.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -344,7 +344,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
                     colors = ButtonDefaults.buttonColors(containerColor = if(workerType==type) Burgundy else BurgundySoft, contentColor = if(workerType==type) Color.White else BurgundyDark)) { Text(label, fontSize = 11.sp) }
             }
         }
-        OutlinedTextField(attendanceDate, { attendanceDate = it; message = "" }, Modifier.fillMaxWidth(), label = { Text("تاریخ حاضری (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        JalaliDateInput(attendanceDate, { attendanceDate = it; message = "" }, "تاریخ حاضری")
         Button(onClick = onOpenReports, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark)) { Text("گزارش‌های حاضری") }
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text("حاضر: ${presentCount} از ${workers.size}", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
@@ -407,8 +407,8 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
             }
         }
         OutlinedTextField(workerQuery,{workerQuery=it},Modifier.fillMaxWidth(),label={Text("نام یا شماره کارمند (اختیاری)")},singleLine=true,colors=appFieldColors(),shape=RoundedCornerShape(12.dp))
-        OutlinedTextField(startDate,{startDate=it},Modifier.fillMaxWidth(),label={Text("از تاریخ (YYYY-MM-DD)")},singleLine=true,colors=appFieldColors(),shape=RoundedCornerShape(12.dp))
-        OutlinedTextField(endDate,{endDate=it},Modifier.fillMaxWidth(),label={Text("تا تاریخ (YYYY-MM-DD)")},singleLine=true,colors=appFieldColors(),shape=RoundedCornerShape(12.dp))
+        JalaliDateInput(startDate, { startDate = it }, "از تاریخ")
+        JalaliDateInput(endDate, { endDate = it }, "تا تاریخ")
         if(!validIsoDate(startDate)||!validIsoDate(endDate)||startDate>endDate) Text("بازه تاریخ معتبر نیست.",color=Color(0xFFB33A32),fontSize=12.sp)
         val totalPresent=rows.sumOf{it.present}
         val totalWage=rows.filter{it.payType=="daily"}.sumOf{it.wageTotal}
@@ -462,5 +462,31 @@ internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
                 }
             }
         }
+    }
+}
+
+@Composable
+internal fun JalaliDateInput(valueIso: String, onValueChange: (String) -> Unit, label: String, allowBlank: Boolean = false) {
+    var showPicker by remember { mutableStateOf(false) }
+    OutlinedTextField(
+        value = if (valueIso.isBlank()) "" else isoDateToJalali(valueIso),
+        onValueChange = {},
+        modifier = Modifier.fillMaxWidth().clickable { showPicker = true },
+        label = { Text(label) }, readOnly = true, singleLine = true,
+        trailingIcon = {
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                if (allowBlank && valueIso.isNotBlank()) TextButton(onClick = { onValueChange("") }) { Text("پاک", color = TextMuted, fontSize = 10.sp) }
+                TextButton(onClick = { showPicker = true }) { Text("▦", color = BurgundyDark, fontSize = 18.sp) }
+            }
+        },
+        colors = appFieldColors(), shape = RoundedCornerShape(12.dp)
+    )
+    if (showPicker) {
+        val todayJalali = remember { isoDateToJalali(SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date())) }
+        JalaliDatePickerDialog(
+            initialDate = if (valueIso.isBlank()) todayJalali else isoDateToJalali(valueIso),
+            onDismiss = { showPicker = false },
+            onDateSelected = { selected -> onValueChange(jalaliDateToIso(selected)); showPicker = false }
+        )
     }
 }
