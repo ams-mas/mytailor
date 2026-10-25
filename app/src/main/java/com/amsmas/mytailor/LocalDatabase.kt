@@ -385,13 +385,19 @@ internal class LocalDatabase(context: Context) :
     }
 
     fun addTailor(tailor: TailorRecord) {
+        val db = writableDatabase
         val values = ContentValues().apply {
             put("name", tailor.name)
             put("phone", tailor.phone)
             put("address", tailor.address)
             put("skills_json", JSONArray(tailor.skills).toString())
         }
-        writableDatabase.insertOrThrow("tailors", null, values)
+        db.insertOrThrow("tailors", null, values)
+        val existingWorker = db.rawQuery("SELECT id FROM workers WHERE name=? AND phone=?", arrayOf(tailor.name.trim(), tailor.phone.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        if (existingWorker == 0) db.insert("workers", null, ContentValues().apply {
+            put("name", tailor.name.trim()); put("phone", tailor.phone.trim()); put("address", tailor.address.trim())
+            put("pay_type", "piece_rate"); put("pay_rate", 0.0); put("active", 1)
+        })
         notifyChanged()
     }
 
