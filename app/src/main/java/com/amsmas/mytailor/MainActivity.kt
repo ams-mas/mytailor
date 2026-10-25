@@ -1,5 +1,18 @@
 package com.amsmas.mytailor
 
+@Composable
+private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
+    focusedBorderColor = Color.White,
+    unfocusedBorderColor = Color(0xCCFFFFFF),
+    focusedLabelColor = Color.White,
+    unfocusedLabelColor = Color(0xFFECECEC),
+    focusedTextColor = Color.White,
+    unfocusedTextColor = Color.White,
+    cursorColor = Color.White,
+    focusedContainerColor = Color(0x33201818),
+    unfocusedContainerColor = Color(0x33201818)
+)
+
 import android.os.Bundle
 import android.content.Context
 import android.print.PrintAttributes
@@ -1551,18 +1564,6 @@ private fun SimpleSection(title: String, description: String) {
     }
 }
 
-@Composable
-private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedBorderColor = Color.White,
-    unfocusedBorderColor = Color(0xCCFFFFFF),
-    focusedLabelColor = Color.White,
-    unfocusedLabelColor = Color(0xFFECECEC),
-    focusedTextColor = Color.White,
-    unfocusedTextColor = Color.White,
-    cursorColor = Color.White,
-    focusedContainerColor = Color(0x33201818),
-    unfocusedContainerColor = Color(0x33201818)
-)
 
 @Composable
 private fun appFieldColors() = OutlinedTextFieldDefaults.colors(
