@@ -74,7 +74,7 @@ internal data class TailorRecord(val name: String, val phone: String, val addres
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
 internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
-private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
+private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
@@ -312,7 +312,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database)
                 selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
-                selected == MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
+                selected == MainTab.REPORTS -> ReportsScreen(database = database)
                 selected == MainTab.SETTINGS -> {
                     if (selectedSettingsCategory != null) {
                         SettingsCategoryScreen(
@@ -409,6 +409,49 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
 
 
 
+
+
+@Composable
+private fun ReportsScreen(database: LocalDatabase) {
+    val revision = database.revision.intValue
+    val counts = remember(revision) { database.getOrderCounts() }
+    val customers = remember(revision) { database.getCustomers() }
+    val tailors = remember(revision) { database.getTailors() }
+    val skills = remember(revision) { database.getSkills() }
+    val models = remember(revision) { database.getGarmentModels() }
+    val financial = remember(revision) { database.getFinancialReport() }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Text("گزارشات", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("خلاصه معلومات و وضعیت کارگاه", color = TextMuted, fontSize = 13.sp)
+        ReportRow("مجموع سفارشات", counts.first.toString(), "سفارش‌های ثبت‌شده")
+        ReportRow("سفارش‌های تکمیل‌شده", counts.second.toString(), "آماده تحویل یا تحویل‌شده")
+        ReportRow("سفارش‌های در جریان", counts.third.toString(), "هنوز تکمیل نشده")
+        ReportRow("مجموع مشتریان", customers.size.toString(), "مشتریان ثبت‌شده")
+        ReportRow("مجموع خیاطان", tailors.size.toString(), "خیاطان ثبت‌شده")
+        ReportRow("مدل‌های لباس", models.size.toString(), "مدل‌های ثبت‌شده")
+        ReportRow("خدمات و مهارت‌ها", skills.size.toString(), "مهارت‌های تعریف‌شده")
+        ReportRow("مجموع قیمت سفارشات", String.format(java.util.Locale.US, "%,.0f افغانی", financial.first), "ارزش تمام سفارشات")
+        ReportRow("باقی‌داری مشتریان", String.format(java.util.Locale.US, "%,.0f افغانی", financial.second), "مبلغ باقی‌مانده برای دریافت")
+    }
+}
+
+@Composable
+private fun ReportRow(title: String, value: String, description: String) {
+    Row(
+        Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(16.dp),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text(title, color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.SemiBold)
+            Text(description, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+        }
+        Text(value, color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+    }
+}
 
 @Composable
 private fun SettingsMenuItem(title: String, symbol: String, tileColor: Color, modifier: Modifier = Modifier, onClick: () -> Unit) {
