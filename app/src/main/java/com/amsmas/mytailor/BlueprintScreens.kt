@@ -21,7 +21,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import java.time.LocalDate
+import java.text.SimpleDateFormat
+import java.util.Calendar
+import java.util.Locale
 
 private val BlueprintPayTypes = listOf("daily", "weekly", "monthly", "piece_rate")
 private fun payTypeLabel(type: String): String = when (type) {
@@ -206,8 +208,13 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
 
 @Composable
 internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
-    val today = remember { LocalDate.now().toString() }
-    var startDate by remember { mutableStateOf(LocalDate.now().withDayOfMonth(1).toString()) }
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
+    val monthStart = remember {
+        val calendar = Calendar.getInstance()
+        calendar.set(Calendar.DAY_OF_MONTH, 1)
+        SimpleDateFormat("yyyy-MM-dd", Locale.US).format(calendar.time)
+    }
+    var startDate by remember { mutableStateOf(monthStart) }
     var endDate by remember { mutableStateOf(today) }
     var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
