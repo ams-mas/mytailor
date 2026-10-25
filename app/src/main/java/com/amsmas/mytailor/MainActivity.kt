@@ -336,7 +336,8 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                     onRegister = { showWorkerMenu = false; showWorkerManagement = true },
                     onList = { showWorkerMenu = false; showWorkerList = true },
                     onPayroll = { showWorkerMenu = false; showWorkerPayroll = true },
-                    onAttendance = { showWorkerMenu = false; showWorkerAttendance = true }
+                    onAttendance = { showWorkerMenu = false; showWorkerAttendance = true },
+                    onAttendanceReports = { showWorkerMenu = false; showWorkerAttendanceReports = true }
                 )
                 showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
                 showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
@@ -398,9 +399,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                             val settingsItems = listOf(
                                 Triple("تنظیمات کارگاه", "⚙", "workshop"),
                                 Triple("مدیریت کارمندان و معاش", "♙", "workers"),
-                                Triple("حاضری کارمندان", "✓", "attendance"),
-                                Triple("گزارش حاضری", "▤", "attendanceReports"),
-                                Triple("مراحل تولید سفارش", "⇢", "workflow"),
+                                                Triple("مراحل تولید سفارش", "⇢", "workflow"),
                                 Triple("پروفایل و معلومات کارگاه", "▣", "profile"),
                                 Triple("پشتیبان‌گیری و بازیابی", "⟳", "backup"),
                                 Triple("ظاهر برنامه", "◐", "appearance"),
@@ -423,8 +422,6 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                                             when (item.third) {
                                                 "workshop" -> showWorkshopSettings = true
                                                 "workers" -> showWorkerMenu = true
-                                                "attendance" -> showWorkerAttendance = true
-                                                "attendanceReports" -> showWorkerAttendanceReports = true
                                                 "workflow" -> showWorkflowSettings = true
                                                 "backup" -> showBackupRestore = true
                                                 else -> selectedSettingsCategory = item.first
@@ -2011,7 +2008,8 @@ private fun WorkerMenuScreen(
     onRegister: () -> Unit,
     onList: () -> Unit,
     onPayroll: () -> Unit,
-    onAttendance: () -> Unit
+    onAttendance: () -> Unit,
+    onAttendanceReports: () -> Unit
 ) {
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
@@ -2028,7 +2026,8 @@ private fun WorkerMenuScreen(
             Triple("ثبت کارمند جدید", "♙", onRegister),
             Triple("فهرست کارمندان", "☷", onList),
             Triple("معاش کارمندان", "؋", onPayroll),
-            Triple("حاضری کارمندان", "✓", onAttendance)
+            Triple("حاضری کارمندان", "✓", onAttendance),
+            Triple("گزارش حاضری", "▤", onAttendanceReports)
         )
         items.chunked(2).forEach { rowItems ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
