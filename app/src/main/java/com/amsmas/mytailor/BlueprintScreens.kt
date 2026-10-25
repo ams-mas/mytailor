@@ -113,6 +113,7 @@ internal fun WorkflowSettingsScreen(database: LocalDatabase, onBack: () -> Unit)
     val steps = remember(revision) { database.getWorkflowSteps() }
     var stepName by remember { mutableStateOf("") }
     var stepOrder by remember { mutableStateOf((steps.size + 1).toString()) }
+    var editingStepId by remember { mutableIntStateOf(0) }
     var message by remember { mutableStateOf("") }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -129,8 +130,8 @@ internal fun WorkflowSettingsScreen(database: LocalDatabase, onBack: () -> Unit)
                 val order = stepOrder.toIntOrNull()
                 if (stepName.isBlank() || order == null || order < 1) message = "نام مرحله و شماره ترتیب معتبر وارد کنید."
                 else {
-                    database.saveWorkflowStep(stepName, order)
-                    stepName = ""; stepOrder = (database.getWorkflowSteps().size + 1).toString(); message = "مرحله ذخیره شد."
+                    database.saveWorkflowStep(stepName, order, editingStepId)
+                    editingStepId = 0; stepName = ""; stepOrder = (database.getWorkflowSteps().size + 1).toString(); message = "مرحله ذخیره شد."
                 }
             }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("افزودن / ذخیره مرحله") }
             if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
@@ -140,7 +141,7 @@ internal fun WorkflowSettingsScreen(database: LocalDatabase, onBack: () -> Unit)
             Row(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(13.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(step.stepOrder.toString(), color = Burgundy, fontWeight = FontWeight.Bold, fontSize = 17.sp, modifier = Modifier.width(32.dp))
                 Text(step.name, color = TextDark, fontSize = 14.sp, modifier = Modifier.weight(1f))
-                TextButton(onClick = { stepName = step.name; stepOrder = step.stepOrder.toString() }) { Text("ویرایش", color = Burgundy) }
+                TextButton(onClick = { editingStepId = step.id; stepName = step.name; stepOrder = step.stepOrder.toString() }) { Text("ویرایش", color = Burgundy) }
             }
         }
         Text("تغییر مراحل پیش‌فرض روی سفارش‌های تازه اعمال می‌شود؛ مراحل سفارش‌های قبلی حفظ می‌شوند.", color = TextMuted, fontSize = 11.sp)
