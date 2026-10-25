@@ -474,6 +474,7 @@ private fun FinanceScreen(database: LocalDatabase) {
     val income = remember(revision, period, startDate, endDate) { database.getIncomeForPeriod(period, startDate, endDate) }
     val debtors = remember(revision) { database.getDebtCustomers() }
     val totalDebt = remember(debtors) { debtors.sumOf { it.second } }
+    val financial = remember(revision) { database.getFinancialReport() }
     val money: (Double) -> String = { amount -> String.format(java.util.Locale.US, "%,.0f", amount) }
 
     Column(
@@ -519,6 +520,12 @@ private fun FinanceScreen(database: LocalDatabase) {
                 Text("${debtors.size}", color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("مشتری", color = BurgundyDark, fontSize = 11.sp)
             }
+        }
+
+        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("ارزش کل سفارش‌های ثبت‌شده", color = TextMuted, fontSize = 12.sp)
+            Text(money(financial.first), color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("افغانی · مجموع قیمت سفارش‌ها", color = TextMuted, fontSize = 11.sp)
         }
 
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
