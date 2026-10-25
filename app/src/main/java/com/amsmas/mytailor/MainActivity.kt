@@ -293,7 +293,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
                 selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
@@ -893,7 +893,7 @@ private fun OrderSuccessScreen(order: TailorOrder, onPrint: () -> Unit, onDone: 
         Spacer(Modifier.height(22.dp))
         Button(onClick = onPrint, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("چاپ رسید", fontSize = 16.sp, fontWeight = FontWeight.Bold) }
         Spacer(Modifier.height(10.dp))
-        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("پایان") }
+        Button(onClick = onDone, modifier = Modifier.fillMaxWidth().height(50.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("بستن") }
     }
 }
 
