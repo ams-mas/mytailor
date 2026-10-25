@@ -102,6 +102,7 @@ class MainActivity : ComponentActivity() {
                 }
                 if (loggedIn) {
                     TailorHome(
+                        context = this@MainActivity,
                         database = localDatabase,
                         onBackup = { backupLauncher.launch("mytailor-backup.json") },
                         onRestore = { restoreLauncher.launch(arrayOf("application/json", "text/json", "text/plain")) },
@@ -273,7 +274,7 @@ private fun FabricScissorTransition(progress: Float) {
 }
 
 @Composable
-private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
+private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
     var selected by remember { mutableStateOf(MainTab.HOME) }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
@@ -292,7 +293,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(this@MainActivity, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
                 selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
