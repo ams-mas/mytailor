@@ -1240,26 +1240,26 @@ private fun CustomerListScreen(database: LocalDatabase) {
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 customers.forEachIndexed { index, customer ->
-                    Column(Modifier.fillMaxWidth().padding(bottom = 9.dp).background(Color.White, RoundedCornerShape(12.dp))) {
-                        Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).padding(horizontal = 10.dp, vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text("شماره", Modifier.weight(0.55f), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("نام مشتری", Modifier.weight(1.45f), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                            Text("شماره تلفن", Modifier.weight(1.35f), color = Color.White, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    Column(Modifier.fillMaxWidth().padding(bottom = 5.dp).background(Color.White, RoundedCornerShape(10.dp))) {
+                        Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text("شماره", Modifier.weight(0.55f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("نام مشتری", Modifier.weight(1.45f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                            Text("شماره تلفن", Modifier.weight(1.35f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                         }
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 10.dp, vertical = 10.dp), verticalAlignment = Alignment.CenterVertically) {
-                            Text((index + 1).toString().toPersianDigits(), Modifier.weight(0.55f), color = Burgundy, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                            Text(customer.name, Modifier.weight(1.45f), color = TextDark, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-                            Text(customer.phone.ifBlank { "ثبت نشده" }, Modifier.weight(1.35f), color = TextMuted, fontSize = 11.sp)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 6.dp), verticalAlignment = Alignment.CenterVertically) {
+                            Text((index + 1).toString().toPersianDigits(), Modifier.weight(0.55f), color = Burgundy, fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                            Text(customer.name, Modifier.weight(1.45f), color = TextDark, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                            Text(customer.phone.ifBlank { "ثبت نشده" }, Modifier.weight(1.35f), color = TextMuted, fontSize = 10.sp)
                         }
                         androidx.compose.material3.HorizontalDivider(color = BorderSoft.copy(alpha = 0.65f))
-                        Row(Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 8.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Column(Modifier.weight(1f).background(BurgundySoft, RoundedCornerShape(9.dp)).clickable { selectedCustomer = customer; activeOnly = true }.padding(horizontal = 10.dp, vertical = 9.dp)) {
-                                Text("سفارش‌های فعال", color = TextMuted, fontSize = 11.sp)
-                                Text(customer.activeOrderCount.toString().toPersianDigits() + "  ›", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth().padding(horizontal = 6.dp, vertical = 5.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                            Column(Modifier.weight(1f).background(BurgundySoft, RoundedCornerShape(8.dp)).clickable { selectedCustomer = customer; activeOnly = true }.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("سفارش‌های فعال", color = TextMuted, fontSize = 10.sp)
+                                Text(customer.activeOrderCount.toString().toPersianDigits() + "  ›", color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
-                            Column(Modifier.weight(1f).background(Color(0xFFE8EEF9), RoundedCornerShape(9.dp)).clickable { selectedCustomer = customer; activeOnly = false }.padding(horizontal = 10.dp, vertical = 9.dp)) {
-                                Text("کل سفارشات", color = Color(0xFF526A91), fontSize = 11.sp)
-                                Text(customer.orderCount.toString().toPersianDigits() + "  ›", color = Color(0xFF2856A6), fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                            Column(Modifier.weight(1f).background(Color(0xFFE8EEF9), RoundedCornerShape(8.dp)).clickable { selectedCustomer = customer; activeOnly = false }.padding(horizontal = 8.dp, vertical = 6.dp)) {
+                                Text("کل سفارشات", color = Color(0xFF526A91), fontSize = 10.sp)
+                                Text(customer.orderCount.toString().toPersianDigits() + "  ›", color = Color(0xFF2856A6), fontSize = 13.sp, fontWeight = FontWeight.Bold)
                             }
                         }
                         if (customer.lastDeliveryDate.isNotBlank()) {
