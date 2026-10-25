@@ -9,7 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val DATABASE_NAME = "mytailor_local.db"
-private const val DATABASE_VERSION = 5
+private const val DATABASE_VERSION = 6
 
 /**
  * On-device database. Records remain available after the app is closed or the phone restarts.
@@ -18,6 +18,11 @@ private const val DATABASE_VERSION = 5
 internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
 internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val measurementsJson: String, val notes: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
 internal data class DeliveryOrder(val id: Int, val customerName: String, val phone: String, val garmentModel: String, val deliveryDate: String, val price: Double, val paid: Double, val remaining: Double, val status: String)
+internal data class WorkerRecord(val id: Int = 0, val name: String, val phone: String = "", val address: String = "", val payType: String = "piece_rate", val payRate: Double = 0.0, val active: Boolean = true)
+internal data class WorkflowStepRecord(val id: Int, val name: String, val stepOrder: Int)
+internal data class OrderWorkflowRecord(val assignmentId: Int, val orderId: Int, val stepId: Int, val stepName: String, val workerId: Int?, val workerName: String, val status: String, val completedAt: String)
+internal data class CustomerMeasurementRecord(val orderType: String, val fieldName: String, val value: String, val recordedAt: String)
+internal data class WorkerPayrollRecord(val workerId: Int, val name: String, val payType: String, val payRate: Double, val units: Int, val earned: Double, val paid: Double) { val due: Double get() = (earned - paid).coerceAtLeast(0.0) }
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -32,6 +37,8 @@ internal class LocalDatabase(context: Context) :
         db.execSQL("CREATE TABLE garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
         createOrdersTable(db)
         createOrderPaymentsTable(db)
+        createBlueprintTables(db)
+        seedDefaultWorkflow(db)
     }
 
     private fun createOrderPaymentsTable(db: SQLiteDatabase) {
@@ -54,6 +61,225 @@ internal class LocalDatabase(context: Context) :
                 FROM orders WHERE deposit + paid > 0
             """.trimIndent())
         }
+        if (oldVersion < 6) {
+            createBlueprintTables(db)
+            seedDefaultWorkflow(db)
+            migrateLegacyData(db)
+        }
+    }
+
+    private fun createBlueprintTables(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS customers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', created_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, UNIQUE(name, phone))")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_customers_phone ON customers(phone)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS order_types (id INTEGER PRIMARY KEY AUTOINCREMENT, type_name TEXT NOT NULL UNIQUE COLLATE NOCASE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS measurement_fields (id INTEGER PRIMARY KEY AUTOINCREMENT, order_type_id INTEGER NOT NULL, field_name TEXT NOT NULL, field_order INTEGER NOT NULL DEFAULT 0, UNIQUE(order_type_id, field_name), FOREIGN KEY(order_type_id) REFERENCES order_types(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS customer_measurements (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER NOT NULL, order_type_id INTEGER NOT NULL, field_id INTEGER NOT NULL, value TEXT NOT NULL, recorded_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, order_id INTEGER, FOREIGN KEY(customer_id) REFERENCES customers(id) ON DELETE CASCADE, FOREIGN KEY(order_type_id) REFERENCES order_types(id), FOREIGN KEY(field_id) REFERENCES measurement_fields(id), FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE SET NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_customer_measurements_history ON customer_measurements(customer_id, recorded_at DESC)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS workers (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT NOT NULL DEFAULT '', address TEXT NOT NULL DEFAULT '', pay_type TEXT NOT NULL DEFAULT 'piece_rate', pay_rate REAL NOT NULL DEFAULT 0, active INTEGER NOT NULL DEFAULT 1)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS workflow_steps (id INTEGER PRIMARY KEY AUTOINCREMENT, step_name TEXT NOT NULL UNIQUE COLLATE NOCASE, step_order INTEGER NOT NULL DEFAULT 0)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS order_step_assignments (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, step_id INTEGER NOT NULL, worker_id INTEGER, step_status TEXT NOT NULL DEFAULT 'pending', completed_at TEXT, payout_amount REAL NOT NULL DEFAULT 0, UNIQUE(order_id, step_id), FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE, FOREIGN KEY(step_id) REFERENCES workflow_steps(id), FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE SET NULL)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_order_steps_status ON order_step_assignments(step_status, order_id)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS worker_attendance (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, work_date TEXT NOT NULL, note TEXT NOT NULL DEFAULT '', UNIQUE(worker_id, work_date), FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE TABLE IF NOT EXISTS worker_payouts (id INTEGER PRIMARY KEY AUTOINCREMENT, worker_id INTEGER NOT NULL, amount REAL NOT NULL CHECK(amount > 0), payout_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, period_start TEXT NOT NULL DEFAULT '', period_end TEXT NOT NULL DEFAULT '', note TEXT NOT NULL DEFAULT '', FOREIGN KEY(worker_id) REFERENCES workers(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_worker_payouts_date ON worker_payouts(worker_id, payout_date)")
+    }
+
+    private fun seedDefaultWorkflow(db: SQLiteDatabase) {
+        if (db.rawQuery("SELECT COUNT(*) FROM workflow_steps", null).use { it.moveToFirst(); it.getInt(0) } == 0) {
+            listOf("برش", "دوخت", "اتوکاری", "تکمیل‌کاری").forEachIndexed { index, name ->
+                db.insert("workflow_steps", null, ContentValues().apply { put("step_name", name); put("step_order", index + 1) })
+            }
+        }
+    }
+
+    private fun migrateLegacyData(db: SQLiteDatabase) {
+        // Import existing customer/order records into the normalized blueprint tables.
+        db.rawQuery("SELECT id, customer_name, phone, garment_model, measurements_json, registered_at FROM orders ORDER BY id", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val orderId = cursor.getInt(0)
+                val name = cursor.getString(1) ?: ""
+                val phone = cursor.getString(2) ?: ""
+                val model = cursor.getString(3) ?: "لباس"
+                val measurements = runCatching { JSONObject(cursor.getString(4) ?: "{}") }.getOrDefault(JSONObject())
+                val recordedAt = cursor.getString(5)?.takeIf { it.isNotBlank() } ?: "CURRENT_TIMESTAMP"
+                db.insertWithOnConflict("customers", null, ContentValues().apply { put("name", name); put("phone", phone) }, SQLiteDatabase.CONFLICT_IGNORE)
+                val customerId = db.rawQuery("SELECT id FROM customers WHERE name = ? AND phone = ?", arrayOf(name, phone)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+                db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", model) }, SQLiteDatabase.CONFLICT_IGNORE)
+                val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(model)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+                if (customerId > 0 && typeId > 0) {
+                    val keys = measurements.keys()
+                    while (keys.hasNext()) {
+                        val fieldName = keys.next()
+                        db.insertWithOnConflict("measurement_fields", null, ContentValues().apply { put("order_type_id", typeId); put("field_name", fieldName); put("field_order", measurements.length()) }, SQLiteDatabase.CONFLICT_IGNORE)
+                        val fieldId = db.rawQuery("SELECT id FROM measurement_fields WHERE order_type_id = ? AND field_name = ?", arrayOf(typeId.toString(), fieldName)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+                        if (fieldId > 0) {
+                            db.insert("customer_measurements", null, ContentValues().apply {
+                                put("customer_id", customerId); put("order_type_id", typeId); put("field_id", fieldId)
+                                put("value", measurements.optString(fieldName)); put("recorded_at", recordedAt); put("order_id", orderId)
+                            })
+                        }
+                    }
+                }
+                val assigned = db.rawQuery("SELECT COUNT(*) FROM order_step_assignments WHERE order_id = ?", arrayOf(orderId.toString())).use { c -> c.moveToFirst(); c.getInt(0) }
+                if (assigned == 0) {
+                    db.rawQuery("SELECT id FROM workflow_steps ORDER BY step_order", null).use { steps ->
+                        while (steps.moveToNext()) db.insert("order_step_assignments", null, ContentValues().apply { put("order_id", orderId); put("step_id", steps.getInt(0)); put("step_status", "pending") })
+                    }
+                }
+            }
+        }
+        db.rawQuery("SELECT name, phone, address, skills_json FROM tailors ORDER BY id", null).use { cursor ->
+            while (cursor.moveToNext()) {
+                val name = cursor.getString(0) ?: continue
+                db.insertWithOnConflict("workers", null, ContentValues().apply {
+                    put("name", name); put("phone", cursor.getString(1) ?: ""); put("address", cursor.getString(2) ?: "")
+                    put("pay_type", "piece_rate"); put("pay_rate", 0.0)
+                }, SQLiteDatabase.CONFLICT_IGNORE)
+            }
+        }
+    }
+
+    private fun syncOrderBlueprintData(db: SQLiteDatabase, orderId: Long, order: TailorOrder) {
+        db.insertWithOnConflict("customers", null, ContentValues().apply {
+            put("name", order.customerName.trim()); put("phone", order.phone.trim())
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+        val customerId = db.rawQuery("SELECT id FROM customers WHERE name = ? AND phone = ?", arrayOf(order.customerName.trim(), order.phone.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+        db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", order.garmentModel.trim()) }, SQLiteDatabase.CONFLICT_IGNORE)
+        val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(order.garmentModel.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+        if (customerId > 0 && typeId > 0) {
+            order.measurements.forEachIndexed { index, entry ->
+                db.insertWithOnConflict("measurement_fields", null, ContentValues().apply { put("order_type_id", typeId); put("field_name", entry.key); put("field_order", index + 1) }, SQLiteDatabase.CONFLICT_IGNORE)
+                val fieldId = db.rawQuery("SELECT id FROM measurement_fields WHERE order_type_id = ? AND field_name = ?", arrayOf(typeId.toString(), entry.key)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
+                if (fieldId > 0 && entry.value.isNotBlank()) db.insert("customer_measurements", null, ContentValues().apply {
+                    put("customer_id", customerId); put("order_type_id", typeId); put("field_id", fieldId); put("value", entry.value); put("order_id", orderId)
+                })
+            }
+        }
+        db.rawQuery("SELECT id FROM workflow_steps ORDER BY step_order", null).use { steps ->
+            while (steps.moveToNext()) db.insertWithOnConflict("order_step_assignments", null, ContentValues().apply {
+                put("order_id", orderId); put("step_id", steps.getInt(0)); put("step_status", "pending")
+            }, SQLiteDatabase.CONFLICT_IGNORE)
+        }
+    }
+
+    fun getWorkers(includeInactive: Boolean = false): List<WorkerRecord> {
+        val rows = mutableListOf<WorkerRecord>()
+        val sql = if (includeInactive) "SELECT id,name,phone,address,pay_type,pay_rate,active FROM workers ORDER BY active DESC,name" else "SELECT id,name,phone,address,pay_type,pay_rate,active FROM workers WHERE active=1 ORDER BY name"
+        readableDatabase.rawQuery(sql, null).use { c ->
+            while (c.moveToNext()) rows.add(WorkerRecord(c.getInt(0), c.getString(1), c.getString(2), c.getString(3), c.getString(4), c.getDouble(5), c.getInt(6) == 1))
+        }
+        return rows
+    }
+
+    fun saveWorker(worker: WorkerRecord) {
+        val values = ContentValues().apply {
+            put("name", worker.name.trim()); put("phone", worker.phone.trim()); put("address", worker.address.trim())
+            put("pay_type", worker.payType); put("pay_rate", worker.payRate); put("active", if (worker.active) 1 else 0)
+        }
+        if (worker.id > 0) writableDatabase.update("workers", values, "id = ?", arrayOf(worker.id.toString()))
+        else writableDatabase.insertOrThrow("workers", null, values)
+        notifyChanged()
+    }
+
+    fun getWorkflowSteps(): List<WorkflowStepRecord> {
+        val rows = mutableListOf<WorkflowStepRecord>()
+        readableDatabase.rawQuery("SELECT id,step_name,step_order FROM workflow_steps ORDER BY step_order,id", null).use { c ->
+            while (c.moveToNext()) rows.add(WorkflowStepRecord(c.getInt(0), c.getString(1), c.getInt(2)))
+        }
+        return rows
+    }
+
+    fun saveWorkflowStep(name: String, order: Int) {
+        val clean = name.trim()
+        if (clean.isBlank()) return
+        writableDatabase.insertWithOnConflict("workflow_steps", null, ContentValues().apply { put("step_name", clean); put("step_order", order) }, SQLiteDatabase.CONFLICT_REPLACE)
+        notifyChanged()
+    }
+
+    fun getOrderWorkflow(orderId: Int): List<OrderWorkflowRecord> {
+        val rows = mutableListOf<OrderWorkflowRecord>()
+        readableDatabase.rawQuery("""
+            SELECT a.id,a.order_id,a.step_id,s.step_name,a.worker_id,COALESCE(w.name,''),a.step_status,COALESCE(a.completed_at,'')
+            FROM order_step_assignments a JOIN workflow_steps s ON s.id=a.step_id
+            LEFT JOIN workers w ON w.id=a.worker_id WHERE a.order_id=? ORDER BY s.step_order,a.id
+        """.trimIndent(), arrayOf(orderId.toString())).use { c ->
+            while (c.moveToNext()) rows.add(OrderWorkflowRecord(c.getInt(0),c.getInt(1),c.getInt(2),c.getString(3),if(c.isNull(4)) null else c.getInt(4),c.getString(5),c.getString(6),c.getString(7)))
+        }
+        return rows
+    }
+
+    fun assignWorkflowStep(assignmentId: Int, workerId: Int?) {
+        writableDatabase.update("order_step_assignments", ContentValues().apply { if (workerId == null) putNull("worker_id") else put("worker_id", workerId) }, "id=?", arrayOf(assignmentId.toString()))
+        notifyChanged()
+    }
+
+    fun updateWorkflowStepStatus(assignmentId: Int, status: String) {
+        val valid = status in listOf("pending", "in_progress", "done")
+        if (!valid) return
+        writableDatabase.update("order_step_assignments", ContentValues().apply {
+            put("step_status", status)
+            if (status == "done") put("completed_at", java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date()))
+            else putNull("completed_at")
+        }, "id=?", arrayOf(assignmentId.toString()))
+        notifyChanged()
+    }
+
+    fun getCustomerMeasurementHistory(customerName: String, phone: String): List<CustomerMeasurementRecord> {
+        val rows = mutableListOf<CustomerMeasurementRecord>()
+        readableDatabase.rawQuery("""
+            SELECT t.type_name,f.field_name,m.value,m.recorded_at
+            FROM customer_measurements m JOIN customers c ON c.id=m.customer_id
+            JOIN order_types t ON t.id=m.order_type_id JOIN measurement_fields f ON f.id=m.field_id
+            WHERE c.name=? AND c.phone=? ORDER BY m.recorded_at DESC,m.id DESC
+        """.trimIndent(), arrayOf(customerName, phone)).use { c ->
+            while (c.moveToNext()) rows.add(CustomerMeasurementRecord(c.getString(0),c.getString(1),c.getString(2),c.getString(3)))
+        }
+        return rows
+    }
+
+    fun recordWorkerAttendance(workerId: Int, workDate: String, note: String = "") {
+        writableDatabase.insertWithOnConflict("worker_attendance", null, ContentValues().apply { put("worker_id", workerId); put("work_date", workDate); put("note", note) }, SQLiteDatabase.CONFLICT_IGNORE)
+        notifyChanged()
+    }
+
+    fun getWorkerPayroll(startDate: String, endDate: String): List<WorkerPayrollRecord> {
+        val rows = mutableListOf<WorkerPayrollRecord>()
+        val workers = getWorkers()
+        val start = startDate.ifBlank { java.text.SimpleDateFormat("yyyy-MM-01", java.util.Locale.US).format(java.util.Date()) }
+        val end = endDate.ifBlank { java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date()) }
+        val days = runCatching { java.time.temporal.ChronoUnit.DAYS.between(java.time.LocalDate.parse(start), java.time.LocalDate.parse(end)).toInt() + 1 }.getOrDefault(1).coerceAtLeast(1)
+        val months = runCatching {
+            val a = java.time.LocalDate.parse(start); val b = java.time.LocalDate.parse(end)
+            ((b.year - a.year) * 12 + b.monthValue - a.monthValue + 1).coerceAtLeast(1)
+        }.getOrDefault(1)
+        workers.forEach { worker ->
+            val units: Int
+            val earned: Double
+            when (worker.payType) {
+                "daily" -> {
+                    units = readableDatabase.rawQuery("SELECT COUNT(*) FROM worker_attendance WHERE worker_id=? AND work_date BETWEEN ? AND ?", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getInt(0) }
+                    earned = units * worker.payRate
+                }
+                "weekly" -> { units = ((days + 6) / 7); earned = units * worker.payRate }
+                "monthly" -> { units = months; earned = units * worker.payRate }
+                else -> {
+                    units = readableDatabase.rawQuery("SELECT COUNT(*) FROM order_step_assignments WHERE worker_id=? AND step_status='done' AND substr(COALESCE(completed_at,''),1,10) BETWEEN ? AND ?", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getInt(0) }
+                    earned = units * worker.payRate
+                }
+            }
+            val paid = readableDatabase.rawQuery("SELECT COALESCE(SUM(amount),0) FROM worker_payouts WHERE worker_id=? AND substr(payout_date,1,10) BETWEEN ? AND ?", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getDouble(0) }
+            rows.add(WorkerPayrollRecord(worker.id, worker.name, worker.payType, worker.payRate, units, earned, paid))
+        }
+        return rows
+    }
+
+    fun markWorkerPaid(workerId: Int, amount: Double, startDate: String, endDate: String, note: String = ""): Boolean {
+        if (!amount.isFinite() || amount <= 0) return false
+        writableDatabase.insertOrThrow("worker_payouts", null, ContentValues().apply {
+            put("worker_id", workerId); put("amount", amount); put("period_start", startDate); put("period_end", endDate); put("note", note)
+        })
+        notifyChanged()
+        return true
     }
 
     fun getSkills(): List<String> {
@@ -166,6 +392,7 @@ internal class LocalDatabase(context: Context) :
                     put("note", "پیش‌پرداخت و پرداخت هنگام ثبت سفارش")
                 })
             }
+            syncOrderBlueprintData(db, orderId, order)
             db.setTransactionSuccessful()
         } finally {
             db.endTransaction()
