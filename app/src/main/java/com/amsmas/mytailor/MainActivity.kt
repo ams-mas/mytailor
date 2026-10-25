@@ -606,8 +606,8 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
                             },
                         singleLine = true,
                         label = { Text("اندازه ${index + 1}") },
-                        colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),
+                        colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),
                     )
                     Text("حذف", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.clickable { editMeasurements = editMeasurements.filterIndexed { itemIndex, _ -> itemIndex != index }; message = "" }.padding(start = 8.dp))
                 }
