@@ -130,6 +130,66 @@ internal class LocalDatabase(context: Context) :
         })
     }
 
+    /**
+     * Adds a fixed set of demo customers and orders without deleting or changing existing records.
+     * Re-running this method will not duplicate the demo customers.
+     */
+    fun addSampleCustomers(): Int {
+        val samples = listOf(
+            Triple("نمونه - احمد محمدی", "0799000101", listOf(Triple("پیراهن", 1800.0, 500.0), Triple("شلوار", 1200.0, 1200.0))),
+            Triple("نمونه - فاطمه احمدی", "0799000102", listOf(Triple("لباس افغانی", 4500.0, 2000.0), Triple("چادر", 2200.0, 700.0))),
+            Triple("نمونه - محمود رحیمی", "0799000103", listOf(Triple("دریشی", 6500.0, 3000.0), Triple("پیراهن", 1600.0, 0.0))),
+            Triple("نمونه - مریم کریمی", "0799000104", listOf(Triple("لباس مجلسی", 8000.0, 8000.0))),
+            Triple("نمونه - حامد نوری", "0799000105", listOf(Triple("کرتی", 3500.0, 1000.0), Triple("شلوار", 1400.0, 400.0))),
+            Triple("نمونه - زینب حیدری", "0799000106", listOf(Triple("لباس افغانی", 5200.0, 2500.0))),
+            Triple("نمونه - بلال صادقی", "0799000107", listOf(Triple("پیراهن", 1700.0, 1700.0), Triple("دریشی", 7000.0, 3500.0))),
+            Triple("نمونه - لیلا سادات", "0799000108", listOf(Triple("لباس مجلسی", 9000.0, 3000.0))),
+            Triple("نمونه - جاوید اکبری", "0799000109", listOf(Triple("کرتی", 3800.0, 1000.0), Triple("پیراهن", 1500.0, 500.0))),
+            Triple("نمونه - سمیرا عظیمی", "0799000110", listOf(Triple("لباس افغانی", 4800.0, 1800.0))),
+            Triple("نمونه - ناصر احمدی", "0799000111", listOf(Triple("دریشی", 7200.0, 2500.0), Triple("شلوار", 1300.0, 1300.0))),
+            Triple("نمونه - شبانه حبیبی", "0799000112", listOf(Triple("لباس مجلسی", 6800.0, 0.0))),
+            Triple("نمونه - فرهاد یوسفی", "0799000113", listOf(Triple("پیراهن", 1900.0, 900.0))),
+            Triple("نمونه - رویا امینی", "0799000114", listOf(Triple("لباس افغانی", 5600.0, 4000.0), Triple("چادر", 2400.0, 1200.0))),
+            Triple("نمونه - کریم شاه", "0799000115", listOf(Triple("کرتی", 3200.0, 500.0)))
+        )
+        val db = writableDatabase
+        var added = 0
+        db.beginTransaction()
+        try {
+            samples.forEachIndexed { customerIndex, sample ->
+                val (name, phone, orders) = sample
+                val exists = db.rawQuery("SELECT 1 FROM orders WHERE customer_name = ? AND phone = ? LIMIT 1", arrayOf(name, phone)).use { it.moveToFirst() }
+                if (!exists) {
+                    orders.forEachIndexed { orderIndex, item ->
+                        val (model, price, totalPaid) = item
+                        val deposit = if (orderIndex == 0) totalPaid / 2.0 else 0.0
+                        val paid = totalPaid - deposit
+                        val ready = (customerIndex + orderIndex) % 4 == 0
+                        val day = ((customerIndex + orderIndex) % 25) + 1
+                        db.insertOrThrow("orders", null, ContentValues().apply {
+                            put("customer_name", name)
+                            put("phone", phone)
+                            put("garment_model", model)
+                            put("measurements_json", JSONObject().toString())
+                            put("notes", "داده نمونه برای آزمایش برنامه")
+                            put("delivery_date", "۱۴۰۵/۰۸/" + day.toString().padStart(2, '0'))
+                            put("price", price)
+                            put("deposit", deposit)
+                            put("paid", paid)
+                            put("remaining", (price - totalPaid).coerceAtLeast(0.0))
+                            put("status", if (ready) "ready" else "incomplete")
+                        })
+                    }
+                    added++
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        return added
+    }
+
     fun getCustomers(search: String = ""): List<CustomerSummary> {
         val result = mutableListOf<CustomerSummary>()
         val term = search.trim()
