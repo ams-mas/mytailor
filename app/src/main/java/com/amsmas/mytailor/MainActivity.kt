@@ -612,8 +612,8 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
                     Text("حذف", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.clickable { editMeasurements = editMeasurements.filterIndexed { itemIndex, _ -> itemIndex != index }; message = "" }.padding(start = 8.dp))
                 }
             }
-            OutlinedTextField(value = newMeasurementName, onValueChange = { newMeasurementName = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("افزودن اندازه جدید") }, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+            OutlinedTextField(value = newMeasurementName, onValueChange = { newMeasurementName = it }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("افزودن اندازه جدید") }, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
             Button(onClick = {
                 val value = newMeasurementName.trim()
                 when {
@@ -643,8 +643,8 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
 
         Spacer(Modifier.height(20.dp))
         Text("افزودن مدل جدید", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-        OutlinedTextField(value = newModelName, onValueChange = { newModelName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = newModelName, onValueChange = { newModelName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         Button(onClick = {
             val name = newModelName.trim()
             when {
@@ -681,8 +681,8 @@ private fun RegisterSkillsForm(
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp)) {
         Text("ثبت مهارت‌ها", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("مالک می‌تواند کارهایی را که در کارگاه انجام می‌شود تعریف کند.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
-        OutlinedTextField(value = newSkill, onValueChange = { newSkill = it; error = false }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("نام مهارت یا نوع کار") }, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = newSkill, onValueChange = { newSkill = it; error = false }, modifier = Modifier.fillMaxWidth(), singleLine = true, label = { Text("نام مهارت یا نوع کار") }, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         if (error) Text("نام مهارت را وارد کنید.", color = Color(0xFFB3261E), fontSize = 12.sp)
         Button(onClick = {
             val value = newSkill.trim()
@@ -725,14 +725,14 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(18.dp), horizontalAlignment = Alignment.Start) {
         Text("ثبت خیاط", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("معلومات خیاط و بخش‌های کاری او را وارد کنید.", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
-        OutlinedTextField(value = name, onValueChange = { name = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("نام خیاط") }, singleLine = true, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = name, onValueChange = { name = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("نام خیاط") }, singleLine = true, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = phone, onValueChange = { phone = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = phone, onValueChange = { phone = it; error = false }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         Spacer(Modifier.height(10.dp))
-        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس") }, minLines = 2, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         Spacer(Modifier.height(18.dp))
         Text("در کدام بخش‌های خیاطی مهارت دارد؟", color = TextDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         if (availableSkills.isEmpty()) {
@@ -1466,10 +1466,10 @@ private fun CustomerDetailsEditor(
             androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
             Text("ویرایش مشخصات مشتری", color = BurgundyDark, fontSize = 20.sp, fontWeight = FontWeight.Bold)
         }
-        OutlinedTextField(value = name, onValueChange = { name = it }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), label = { Text("نام مشتری") }, singleLine = true, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
-        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("شماره تلفن") }, singleLine = true, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = name, onValueChange = { name = it }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), label = { Text("نام مشتری") }, singleLine = true, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
+        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("شماره تلفن") }, singleLine = true, colors = appFieldColors(),
+                        shape = RoundedCornerShape(16.dp),)
         Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
             Text("ذخیره تغییرات", color = Color.White)
         }
