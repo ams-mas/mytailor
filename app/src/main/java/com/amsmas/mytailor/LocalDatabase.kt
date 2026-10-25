@@ -235,6 +235,13 @@ internal class LocalDatabase(context: Context) :
         return result
     }
 
+    fun updateOrderMeasurements(orderId: Int, measurements: Map<String, String>) {
+        val values = ContentValues().apply {
+            put("measurements_json", JSONObject(measurements).toString())
+        }
+        writableDatabase.update("orders", values, "id = ?", arrayOf(orderId.toString()))
+    }
+
     fun getOrderCounts(): Triple<Int, Int, Int> {
         fun count(selection: String? = null): Int {
             val sql = if (selection == null) "SELECT COUNT(*) FROM orders" else "SELECT COUNT(*) FROM orders WHERE $selection"
