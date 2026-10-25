@@ -63,7 +63,7 @@ internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit)
             OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             Text("روش پرداخت معاش", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
-            BlueprintPayTypes.chunked(2).forEach { row ->
+            BlueprintPayTypes.chunked(3).forEach { row ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     row.forEach { type ->
                         Column(Modifier.weight(1f).background(if (payType == type) Burgundy else BurgundySoft, RoundedCornerShape(10.dp)).clickable { payType = type }.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
