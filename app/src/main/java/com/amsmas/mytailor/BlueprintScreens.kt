@@ -169,7 +169,7 @@ internal fun ProductionWorkflowScreen(database: LocalDatabase, onBack: () -> Uni
                 Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).clickable { selectedOrder = order }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(order.customerName, color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
                     Text("${order.garmentModel} · سفارش #${order.id}", color = TextDark, fontSize = 12.sp)
-                    Text("تحویل: ${order.deliveryDate}", color = TextMuted, fontSize = 11.sp)
+                    Text("تحویل: ${displayShopDate(order.deliveryDate)}", color = TextMuted, fontSize = 11.sp)
                     Text("برای مدیریت مراحل لمس کنید  ›", color = Burgundy, fontSize = 12.sp)
                 }
             }
