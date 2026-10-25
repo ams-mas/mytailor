@@ -449,8 +449,4 @@ internal class LocalDatabase(context: Context) :
         notifyChanged()
     }
 
-    companion {
-        private const val DATABASE_NAME = "mytailor_local.db"
-        private const val DATABASE_VERSION = 4
-    }
 }
