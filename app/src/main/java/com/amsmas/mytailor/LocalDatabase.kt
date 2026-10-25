@@ -15,7 +15,7 @@ private const val DATABASE_VERSION = 6
  * On-device database. Records remain available after the app is closed or the phone restarts.
  * Backup/export and restore/import can be added later without changing the app's data model.
  */
-internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
+internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String, val address: String = "")
 internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val measurementsJson: String, val notes: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
 internal data class DeliveryOrder(val id: Int, val customerName: String, val phone: String, val garmentModel: String, val deliveryDate: String, val price: Double, val paid: Double, val remaining: Double, val status: String)
 internal data class WorkerRecord(val id: Int = 0, val name: String, val phone: String = "", val address: String = "", val payType: String = "piece_rate", val payRate: Double = 0.0, val active: Boolean = true)
@@ -141,8 +141,9 @@ internal class LocalDatabase(context: Context) :
 
     private fun syncOrderBlueprintData(db: SQLiteDatabase, orderId: Long, order: TailorOrder) {
         db.insertWithOnConflict("customers", null, ContentValues().apply {
-            put("name", order.customerName.trim()); put("phone", order.phone.trim())
+            put("name", order.customerName.trim()); put("phone", order.phone.trim()); put("address", order.address.trim())
         }, SQLiteDatabase.CONFLICT_IGNORE)
+        if (order.address.isNotBlank()) db.update("customers", ContentValues().apply { put("address", order.address.trim()) }, "name = ? AND phone = ?", arrayOf(order.customerName.trim(), order.phone.trim()))
         val customerId = db.rawQuery("SELECT id FROM customers WHERE name = ? AND phone = ?", arrayOf(order.customerName.trim(), order.phone.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
         db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", order.garmentModel.trim()) }, SQLiteDatabase.CONFLICT_IGNORE)
         val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(order.garmentModel.trim())).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
@@ -525,34 +526,43 @@ internal class LocalDatabase(context: Context) :
     fun getCustomers(search: String = ""): List<CustomerSummary> {
         val result = mutableListOf<CustomerSummary>()
         val term = search.trim()
-        val where = if (term.isBlank()) "" else "WHERE customer_name LIKE ? OR phone LIKE ?"
-        val args = if (term.isBlank()) null else arrayOf("%$term%", "%$term%")
         val sql = """
-            SELECT customer_name, phone,
-                   SUM(CASE WHEN status NOT IN ('ready', 'delivered') THEN 1 ELSE 0 END) AS active_order_count,
-                   COUNT(*) AS order_count,
-                   COALESCE(SUM(remaining), 0) AS total_remaining,
-                   (SELECT o2.delivery_date FROM orders o2
-                    WHERE o2.customer_name = orders.customer_name AND o2.phone = orders.phone
-                    ORDER BY o2.id DESC LIMIT 1) AS last_delivery_date
-            FROM orders
-            $where
-            GROUP BY customer_name, phone
-            ORDER BY MAX(id) DESC
+            SELECT c.name,c.phone,c.address,
+                   COALESCE(SUM(CASE WHEN o.status NOT IN ('ready','delivered') THEN 1 ELSE 0 END),0) AS active_order_count,
+                   COUNT(o.id) AS order_count,
+                   COALESCE(SUM(o.remaining),0) AS total_remaining,
+                   COALESCE(MAX(o.delivery_date),'') AS last_delivery_date
+            FROM customers c
+            LEFT JOIN orders o ON o.customer_name=c.name AND o.phone=c.phone
+            WHERE (? = '' OR c.name LIKE ? OR c.phone LIKE ?)
+            GROUP BY c.id,c.name,c.phone,c.address
+            ORDER BY c.id DESC
         """.trimIndent()
-        readableDatabase.rawQuery(sql, args).use { cursor ->
-            while (cursor.moveToNext()) {
-                result.add(CustomerSummary(
-                    name = cursor.getString(0) ?: "",
-                    phone = cursor.getString(1) ?: "",
-                    activeOrderCount = cursor.getInt(2),
-                    orderCount = cursor.getInt(3),
-                    remaining = cursor.getDouble(4),
-                    lastDeliveryDate = cursor.getString(5) ?: ""
-                ))
-            }
+        readableDatabase.rawQuery(sql, arrayOf(term, "%$term%", "%$term%")).use { cursor ->
+            while (cursor.moveToNext()) result.add(CustomerSummary(
+                name = cursor.getString(0) ?: "",
+                phone = cursor.getString(1) ?: "",
+                address = cursor.getString(2) ?: "",
+                activeOrderCount = cursor.getInt(3),
+                orderCount = cursor.getInt(4),
+                remaining = cursor.getDouble(5),
+                lastDeliveryDate = cursor.getString(6) ?: ""
+            ))
         }
         return result
+    }
+
+    fun saveCustomer(name: String, phone: String, address: String = ""): Boolean {
+        val cleanName = name.trim()
+        val cleanPhone = phone.trim()
+        if (cleanName.isBlank()) return false
+        val db = writableDatabase
+        db.insertWithOnConflict("customers", null, ContentValues().apply {
+            put("name", cleanName); put("phone", cleanPhone); put("address", address.trim())
+        }, SQLiteDatabase.CONFLICT_IGNORE)
+        db.update("customers", ContentValues().apply { put("address", address.trim()) }, "name=? AND phone=?", arrayOf(cleanName, cleanPhone))
+        notifyChanged()
+        return true
     }
 
     fun getCustomerOrders(name: String, phone: String, activeOnly: Boolean): List<CustomerOrderHistory> {
@@ -567,13 +577,14 @@ internal class LocalDatabase(context: Context) :
         return result
     }
 
-    fun updateCustomerDetails(oldName: String, oldPhone: String, newName: String, newPhone: String) {
-        writableDatabase.update(
-            "orders",
-            ContentValues().apply { put("customer_name", newName.trim()); put("phone", newPhone.trim()) },
-            "customer_name = ? AND phone = ?",
-            arrayOf(oldName, oldPhone)
-        )
+    fun updateCustomerDetails(oldName: String, oldPhone: String, newName: String, newPhone: String, newAddress: String = "") {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            db.update("orders", ContentValues().apply { put("customer_name", newName.trim()); put("phone", newPhone.trim()) }, "customer_name = ? AND phone = ?", arrayOf(oldName, oldPhone))
+            db.update("customers", ContentValues().apply { put("name", newName.trim()); put("phone", newPhone.trim()); put("address", newAddress.trim()) }, "name = ? AND phone = ?", arrayOf(oldName, oldPhone))
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
         notifyChanged()
     }
 
