@@ -41,7 +41,6 @@ private fun validIsoDate(value: String): Boolean = runCatching {
 @Composable
 internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit) {
     val revision = database.revision.intValue
-    val workers = remember(revision) { database.getWorkers(includeInactive = true) }
     var editingId by remember { mutableIntStateOf(0) }
     var name by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
@@ -104,20 +103,6 @@ internal fun WorkerManagementScreen(database: LocalDatabase, onBack: () -> Unit)
             }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره کارمند") }
             if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
             if (editingId > 0) TextButton(onClick = { editingId = 0; name = ""; phone = ""; address = ""; payRate = ""; payType = "piece_rate"; startDate = SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()); endDate = ""; message = "" }) { Text("لغو ویرایش", color = TextMuted) }
-        }
-        Text("فهرست کارمندان (${workers.size})", color = BurgundyDark, fontSize = 18.sp, fontWeight = FontWeight.Bold)
-        if (workers.isEmpty()) Text("هنوز کارمندی ثبت نشده است.", color = TextMuted)
-        workers.forEach { worker ->
-            Row(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(worker.name, color = TextDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
-                    Text(if (worker.phone.isBlank()) "بدون شماره تماس" else worker.phone, color = TextMuted, fontSize = 12.sp)
-                    Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = BurgundyDark, fontSize = 12.sp)
-                    if (worker.payType == "daily") Text("قرارداد: ${worker.startDate} تا ${worker.endDate.ifBlank { "بدون تاریخ ختم" }}", color = TextMuted, fontSize = 10.sp)
-                    if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 11.sp)
-                }
-                TextButton(onClick = { editingId = worker.id; name = worker.name; phone = worker.phone; address = worker.address; payType = worker.payType; payRate = worker.payRate.toString(); startDate = worker.startDate.ifBlank { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }; endDate = worker.endDate; message = "" }) { Text("ویرایش", color = Burgundy) }
-            }
         }
     }
 }
