@@ -221,6 +221,13 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
     var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
     val payroll = remember(revision, startDate, endDate) { database.getWorkerPayroll(startDate, endDate) }
+    val monthlyRows = payroll.filter { it.payType == "monthly" }
+    val dailyRows = payroll.filter { it.payType == "daily" }
+    val monthlyDue = monthlyRows.sumOf { it.due }
+    val dailyDue = dailyRows.sumOf { it.due }
+    val paidTotal = payroll.sumOf { it.paid }
+    val allDue = monthlyDue + dailyDue
+    val money = { amount: Double -> String.format(Locale.US, "%,.0f", amount) }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
@@ -234,6 +241,36 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
             OutlinedTextField(endDate, { endDate = it }, Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(attendanceDate, { attendanceDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تاریخ حاضری (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             Text("برای کارمند روزانه، تاریخ حاضری را وارد و ثبت کنید.", color = TextMuted, fontSize = 11.sp)
+        }
+        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(20.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("معاش قابل پرداخت کارمندان ماهانه", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                Text("↗", color = Color.White, fontSize = 22.sp)
+            }
+            Text(money(monthlyDue) + " افغانی", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("تعداد کارمندان: ${monthlyRows.size}", color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.22f)))
+            Text("مجموع باقی‌مانده معاش ماهانه در بازه انتخاب‌شده", color = Color.White.copy(alpha = 0.86f), fontSize = 11.sp)
+        }
+        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(20.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("معاش قابل پرداخت کارمندان روزانه", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                Text("↗", color = Color.White, fontSize = 22.sp)
+            }
+            Text(money(dailyDue) + " افغانی", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("تعداد کارمندان: ${dailyRows.size}", color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.22f)))
+            Text("بر اساس روزهای حاضری ثبت‌شده", color = Color.White.copy(alpha = 0.86f), fontSize = 11.sp)
+        }
+        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF5D626B), Color(0xFF343941))), RoundedCornerShape(20.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("مجموع معاش پرداخت‌شده", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp)
+                Text("✓", color = Color.White, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            }
+            Text(money(paidTotal) + " افغانی", color = Color.White, fontSize = 28.sp, fontWeight = FontWeight.Bold)
+            Text("مجموع پرداخت‌های ثبت‌شده برای کارمندان", color = Color.White.copy(alpha = 0.88f), fontSize = 12.sp)
+            Box(Modifier.fillMaxWidth().height(1.dp).background(Color.White.copy(alpha = 0.22f)))
+            Text("باقی‌مانده معاش ماهانه و روزانه: ${money(allDue)} افغانی", color = Color.White.copy(alpha = 0.86f), fontSize = 11.sp)
         }
         if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
         if (payroll.isEmpty()) Text("ابتدا از تنظیمات کارمندان را ثبت کنید.", color = TextMuted)
