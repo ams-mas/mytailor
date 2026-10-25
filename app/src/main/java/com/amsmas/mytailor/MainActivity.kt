@@ -1280,23 +1280,25 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
         else {
             Text("تعداد: ${orders.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
-                Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(vertical = 9.dp, horizontal = 5.dp)) {
-                    Text("شماره", Modifier.weight(0.65f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("تاریخ ثبت", Modifier.weight(1.35f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("قیمت", Modifier.weight(0.9f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("پرداخت", Modifier.weight(0.9f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                    Text("باقی", Modifier.weight(0.9f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
+                Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(vertical = 9.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text("شماره", Modifier.weight(0.65f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("تاریخ سفارش", Modifier.weight(1.25f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("مدل سفارش", Modifier.weight(1.15f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("قیمت", Modifier.weight(0.85f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("پرداخت", Modifier.weight(0.85f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
+                    Text("باقیمانده", Modifier.weight(0.9f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
                 }
                 orders.forEach { order ->
-                    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)).padding(7.dp)) {
+                    Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp, vertical = 8.dp)) {
                         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                            Text("#${order.id.toString().toPersianDigits()}", Modifier.weight(0.65f), color = BurgundyDark, fontSize = 10.sp)
-                            Text(order.registeredAt.replace("T", " ").take(16).toPersianDigits().ifBlank { "—" }, Modifier.weight(1.35f), color = TextDark, fontSize = 9.sp)
-                            Text(formatReceiptAmount(order.price), Modifier.weight(0.9f), color = TextDark, fontSize = 9.sp)
-                            Text(formatReceiptAmount(order.paid + order.deposit), Modifier.weight(0.9f), color = Color(0xFF237342), fontSize = 9.sp)
-                            Text(formatReceiptAmount(order.remaining), Modifier.weight(0.9f), color = if (order.remaining > 0) Color(0xFFB33A32) else TextMuted, fontSize = 9.sp)
+                            Text("#${order.id.toString().toPersianDigits()}", Modifier.weight(0.65f), color = BurgundyDark, fontSize = 8.sp)
+                            Text(order.registeredAt.replace("T", " ").take(10).toPersianDigits().ifBlank { "—" }, Modifier.weight(1.25f), color = TextDark, fontSize = 8.sp)
+                            Text(order.garmentModel.ifBlank { "—" }, Modifier.weight(1.15f), color = TextDark, fontSize = 8.sp)
+                            Text(formatReceiptAmount(order.price), Modifier.weight(0.85f), color = TextDark, fontSize = 8.sp)
+                            Text(formatReceiptAmount(order.paid + order.deposit), Modifier.weight(0.85f), color = Color(0xFF237342), fontSize = 8.sp)
+                            Text(formatReceiptAmount(order.remaining), Modifier.weight(0.9f), color = if (order.remaining > 0) Color(0xFFB33A32) else TextMuted, fontSize = 8.sp)
                         }
-                        Text("مدل: ${order.garmentModel} • تحویل: ${order.deliveryDate} • وضعیت: ${if (order.status == "ready") "آماده" else "در جریان"}", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("تحویل: ${order.deliveryDate} • وضعیت: ${if (order.status == "ready") "آماده" else "در جریان"}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
                     }
                     Spacer(Modifier.height(5.dp))
                 }
