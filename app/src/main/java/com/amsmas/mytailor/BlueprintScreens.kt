@@ -262,3 +262,68 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
         }
     }
 }
+
+
+@Composable
+internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> Unit) {
+    val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
+    val revision = database.revision.intValue
+    val workers = remember(revision) { database.getWorkers() }
+    val presentWorkerIds = remember(revision, today) { database.getWorkerAttendanceForDate(today) }
+    val presentCount = workers.count { it.id in presentWorkerIds }
+
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(
+            Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("حاضری روزانه کارمندان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("تاریخ امروز: $today", color = TextMuted, fontSize = 13.sp)
+            }
+            TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+        }
+        Column(
+            Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(14.dp),
+            verticalArrangement = Arrangement.spacedBy(5.dp)
+        ) {
+            Text("حاضری ثبت‌شده: $presentCount از ${workers.size} کارمند", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("با ثبت حاضری، نام کارمند و تاریخ امروز در سیستم ذخیره می‌شود و معاش روزانه بر همان اساس محاسبه می‌گردد.", color = TextMuted, fontSize = 12.sp)
+        }
+        if (workers.isEmpty()) {
+            Text("هنوز کارمندی ثبت نشده است. ابتدا از تنظیمات، کارمندان را اضافه کنید.", color = TextMuted)
+        }
+        workers.forEach { worker ->
+            val isPresent = worker.id in presentWorkerIds
+            Row(
+                Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                    Text(if (worker.phone.isBlank()) "روش معاش: ${payTypeLabel(worker.payType)}" else "${worker.phone} · ${payTypeLabel(worker.payType)}", color = TextMuted, fontSize = 11.sp)
+                    if (isPresent) Text("حاضری امروز ثبت شده است", color = Color(0xFF287447), fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+                Button(
+                    onClick = { database.recordWorkerAttendance(worker.id, today) },
+                    enabled = !isPresent,
+                    colors = ButtonDefaults.buttonColors(
+                        containerColor = if (isPresent) Color(0xFFE4F1E7) else Burgundy,
+                        disabledContainerColor = Color(0xFFE4F1E7),
+                        contentColor = if (isPresent) Color(0xFF287447) else Color.White,
+                        disabledContentColor = Color(0xFF287447)
+                    ),
+                    shape = RoundedCornerShape(10.dp),
+                    contentPadding = PaddingValues(horizontal = 12.dp, vertical = 8.dp)
+                ) {
+                    Text(if (isPresent) "ثبت شد ✓" else "ثبت حاضری", fontSize = 12.sp)
+                }
+            }
+        }
+    }
+}
