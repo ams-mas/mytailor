@@ -382,140 +382,81 @@ private fun reportPersianDigits(value: String): String = value.map { ch -> if (c
 @Composable
 internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
-    val monthStart = remember { currentJalaliMonthStartIso() }
-    var startDate by remember { mutableStateOf(monthStart) }
-    var endDate by remember { mutableStateOf(today) }
+    var attendanceDate by remember { mutableStateOf(today) }
     var workerType by remember { mutableStateOf("all") }
     var workerQuery by remember { mutableStateOf("") }
-    var expandedWorkerId by remember { mutableStateOf<Int?>(null) }
-    var reportError by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
-    val workers = remember(revision) { database.getWorkers().filter { it.payType == "monthly" || it.payType == "daily" } }
-    val selectedWorker = workers.firstOrNull { it.name.contains(workerQuery.trim(), ignoreCase = true) || (workerQuery.toIntOrNull() != null && it.id == workerQuery.toInt()) }
-    val validRange = validIsoDate(startDate) && validIsoDate(endDate) && startDate <= endDate
-    val rows = remember(revision, startDate, endDate, workerType, selectedWorker?.id, workerQuery, validRange) {
-        if (!validRange || (workerQuery.isNotBlank() && selectedWorker == null)) {
-            reportError = ""
-            emptyList()
-        } else {
-            runCatching { database.getWorkerAttendanceReport(startDate, endDate, workerType, if (workerQuery.isBlank()) null else selectedWorker?.id) }
-                .onFailure { reportError = it.message ?: "خطا در خواندن گزارش حاضری" }
-                .onSuccess { reportError = "" }
-                .getOrDefault(emptyList())
+    val allWorkers = remember(revision) {
+        database.getWorkers().filter { it.payType == "monthly" || it.payType == "daily" }
+    }
+    val workersByType = remember(allWorkers, workerType) {
+        when (workerType) {
+            "monthly" -> allWorkers.filter { it.payType == "monthly" }
+            "daily" -> allWorkers.filter { it.payType == "daily" }
+            else -> allWorkers
         }
     }
-    val monthlyRows = rows.filter { it.payType == "monthly" }
-    val dailyRows = rows.filter { it.payType == "daily" }
-    val monthlyBaseTotal = monthlyRows.sumOf { it.rate }
-    val monthlyDeductionTotal = monthlyRows.sumOf { (it.absent * (it.rate / 30.0)).coerceAtMost(it.rate) }
-    val monthlyNetTotal = (monthlyBaseTotal - monthlyDeductionTotal).coerceAtLeast(0.0)
-    val dailyWageTotal = dailyRows.sumOf { it.wageTotal }
-    val grandTotal = monthlyNetTotal + dailyWageTotal
+    val eligibleWorkers = workersByType.filter { worker ->
+        worker.payType != "daily" ||
+            (attendanceDate >= worker.startDate && (worker.endDate.isBlank() || attendanceDate <= worker.endDate))
+    }.filter { worker ->
+        workerQuery.isBlank() || worker.name.contains(workerQuery.trim(), ignoreCase = true) ||
+            (workerQuery.toIntOrNull() != null && worker.id == workerQuery.toInt())
+    }
+    val statuses = remember(revision, attendanceDate) {
+        database.getWorkerAttendanceStatusesForDate(attendanceDate)
+    }
+    val presentCount = eligibleWorkers.count { statuses[it.id] == "present" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
-            Text("گزارش حاضری و معاش", color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+            Text("گزارش حاضری", color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
             TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("all" to "همه کارمندان", "monthly" to "ماهانه", "daily" to "روزانه").forEach { (type, label) ->
-                Button(onClick = { workerType = type }, modifier = Modifier.weight(1f),
+                Button(onClick = { workerType = type; message = "" }, modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = if (workerType == type) Burgundy else BurgundySoft, contentColor = if (workerType == type) Color.White else BurgundyDark),
-                    contentPadding = PaddingValues(4.dp)) { Text(label, fontSize = 10.sp) }
+                    contentPadding = PaddingValues(horizontal = 3.dp, vertical = 8.dp)) { Text(label, fontSize = 10.sp) }
             }
         }
-        OutlinedTextField(workerQuery, { workerQuery = it }, Modifier.fillMaxWidth(), label = { Text("نام یا شماره کارمند (اختیاری)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-        JalaliDateInput(startDate, { startDate = it }, "از تاریخ")
-        JalaliDateInput(endDate, { endDate = it }, "تا تاریخ")
-        if (validRange) Text("بازه گزارش: ${isoDateToJalali(startDate)} تا ${isoDateToJalali(endDate)}", color = TextMuted, fontSize = 11.sp)
-        else Text("بازه تاریخ معتبر نیست.", color = Color(0xFFB33A32), fontSize = 12.sp)
-        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(18.dp)).padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("معاش خالص کارمندان ماهانه", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
-            Text("${blueprintMoney(monthlyNetTotal)} افغانی", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-            Text("معاش پایه: ${blueprintMoney(monthlyBaseTotal)} · کسر غیابت: ${blueprintMoney(monthlyDeductionTotal)}", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
+        JalaliDateInput(attendanceDate, { attendanceDate = it; message = "" }, "تاریخ حاضری")
+        Text("حاضر: $presentCount از ${eligibleWorkers.size}", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        OutlinedTextField(workerQuery, { workerQuery = it }, Modifier.fillMaxWidth(), label = { Text("جست‌وجوی نام کارمند (اختیاری)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
+        if (eligibleWorkers.isEmpty()) {
+            Text("برای این فیلتر و تاریخ کارمندی وجود ندارد.", color = TextMuted)
         }
-        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(18.dp)).padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("معاش کسب‌شده کارمندان روزانه", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
-            Text("${blueprintMoney(dailyWageTotal)} افغانی", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-            Text("بر اساس روزهای حاضر ثبت‌شده", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
-        }
-        Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(Color(0xFF454951), Color(0xFF343941))), RoundedCornerShape(18.dp)).padding(15.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-            Text("مجموع کل معاش قابل پرداخت", color = Color.White.copy(alpha = 0.9f), fontSize = 12.sp)
-            Text("${blueprintMoney(grandTotal)} افغانی", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
-            Text("معاش ماهانه پس از کسر غیابت + معاش روزانه", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
-        }
-        if (reportError.isNotBlank()) Text("گزارش باز شد، اما خواندن اطلاعات با خطا روبه‌رو شد: $reportError", color = Color(0xFFB33A32), fontSize = 12.sp)
-        if (rows.isEmpty() && reportError.isBlank()) Text("برای فیلترهای انتخاب‌شده گزارشی وجود ندارد.", color = TextMuted)
-        rows.forEach { row ->
-            val isMonthly = row.payType == "monthly"
-            val deduction = if (isMonthly) (row.absent * (row.rate / 30.0)).coerceAtMost(row.rate) else 0.0
-            val netMonthly = if (isMonthly) (row.rate - deduction).coerceAtLeast(0.0) else 0.0
-            Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(15.dp)).clickable { expandedWorkerId = if (expandedWorkerId == row.workerId) null else row.workerId }.padding(14.dp), verticalArrangement = Arrangement.spacedBy(7.dp)) {
+        eligibleWorkers.forEach { worker ->
+            val status = statuses[worker.id]
+            val statusLabel = when (status) { "present" -> "حاضر"; "absent" -> "غایب"; "leave" -> "رخصتی"; else -> "ثبت‌نشده" }
+            val statusColor = when (status) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); "leave" -> Color(0xFFD9A326); else -> TextMuted }
+            Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                        Text(row.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(if (isMonthly) "کارمند ماهانه" else "کارمند روزانه", color = TextMuted, fontSize = 11.sp)
+                        Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                        Text(if (worker.payType == "monthly") "کارمند ماهانه" else "کارمند روزانه", color = TextMuted, fontSize = 11.sp)
                     }
-                    Text(if (expandedWorkerId == row.workerId) "−" else "+", color = Burgundy, fontSize = 20.sp)
+                    Text(statusLabel, color = statusColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
-                Text("معاش پایه/نرخ روزانه: ${blueprintMoney(row.rate)} افغانی", color = TextDark, fontSize = 12.sp)
-                Text("حاضر: ${row.present}  ·  غایب: ${row.absent}  ·  رخصتی: ${row.leave}", color = TextDark, fontSize = 12.sp)
-                if (isMonthly) {
-                    Text("کسر غیابت: ${blueprintMoney(deduction)} افغانی", color = Color(0xFFB33A32), fontSize = 12.sp)
-                    Text("معاش خالص قابل پرداخت: ${blueprintMoney(netMonthly)} افغانی", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                } else {
-                    Text("روزهای کار: ${row.present}", color = TextDark, fontSize = 12.sp)
-                    Text("مجموع معاش کسب‌شده: ${blueprintMoney(row.wageTotal)} افغانی", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                }
-                if (expandedWorkerId == row.workerId) {
-                    val jalaliParts = isoDateToJalali(startDate).toEnglishDigits().split("/")
-                    val jalaliYear = jalaliParts.getOrNull(0)?.toIntOrNull() ?: 1405
-                    val jalaliMonth = jalaliParts.getOrNull(1)?.toIntOrNull() ?: 1
-                    val monthLabel = listOf("حمل","ثور","جوزا","سرطان","اسد","سنبله","میزان","عقرب","قوس","جدی","دلو","حوت").getOrNull(jalaliMonth - 1) ?: ""
-                    val daysInMonth = remember(jalaliYear, jalaliMonth) {
-                        (1..31).count { day ->
-                            val candidate = "${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${day.toString().padStart(2,'0')}"
-                            val iso = jalaliDateToIso(candidate)
-                            isoDateToJalali(iso).toEnglishDigits() == candidate
-                        }
+                Button(onClick = {
+                    val nextStatus = when (status) {
+                        null -> "present"
+                        "present" -> "absent"
+                        "absent" -> "leave"
+                        else -> null
                     }
-                    val monthStartIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/01")
-                    val monthEndIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${daysInMonth.toString().padStart(2,'0')}")
-                    val monthStatuses = remember(revision, row.workerId, monthStartIso, monthEndIso) {
-                        database.getWorkerAttendanceStatusesForWorker(row.workerId, monthStartIso, monthEndIso)
+                    val saved = if (nextStatus == null) {
+                        database.clearWorkerAttendanceStatus(worker.id, attendanceDate)
+                    } else {
+                        database.setWorkerAttendanceStatus(worker.id, attendanceDate, nextStatus)
                     }
-                    Text("تقویم حاضری: $monthLabel ${reportPersianDigits(jalaliYear.toString())}", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        listOf(Color(0xFF287447) to "حاضر", Color(0xFFB33A32) to "غایب", Color(0xFFD9A326) to "رخصتی", Color(0xFFE9E2DE) to "ثبت‌نشده").forEach { (color, label) ->
-                            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
-                                Box(Modifier.size(9.dp).background(color, RoundedCornerShape(3.dp)))
-                                Text(label, color = TextMuted, fontSize = 9.sp)
-                            }
-                        }
-                    }
-                    (1..daysInMonth).toList().chunked(7).forEach { week ->
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-                            week.forEach { day ->
-                                val dayIso = jalaliDateToIso("${jalaliYear}/${jalaliMonth.toString().padStart(2,'0')}/${day.toString().padStart(2,'0')}")
-                                val dayStatus = monthStatuses[dayIso]
-                                val dayColor = when(dayStatus) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); "leave" -> Color(0xFFD9A326); else -> Color(0xFFE9E2DE) }
-                                Box(Modifier.weight(1f).aspectRatio(1f).background(dayColor, RoundedCornerShape(7.dp)).clickable {
-                                    val nextStatus = when(dayStatus) { null -> "present"; "present" -> "absent"; "absent" -> "leave"; else -> "present" }
-                                    if (database.setWorkerAttendanceStatus(row.workerId, dayIso, nextStatus)) {
-                                        expandedWorkerId = row.workerId
-                                    }
-                                }, contentAlignment = Alignment.Center) {
-                                    Text(reportPersianDigits(day.toString()), color = if(dayStatus == null) BurgundyDark else Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
-                                }
-                            }
-                            repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
-                        }
-                    }
-                    Text("برای اصلاح وضعیت، روی روز کلیک کن: ثبت‌نشده ← حاضر ← غایب ← رخصتی.", color = TextMuted, fontSize = 10.sp)
-                    Text("معاش ماهانه: معاش پایه ÷ ۳۰ × روزهای غیابت. معاش روزانه: روزهای حاضر × نرخ روزانه.", color = TextMuted, fontSize = 11.sp)
+                    message = if (saved) "وضعیت حاضری ${worker.name} ثبت شد." else "وضعیت حاضری تغییر نکرد؛ دوباره تلاش کن."
+                }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = if (status == null) BurgundySoft else statusColor, contentColor = if (status == null) BurgundyDark else Color.White)) {
+                    Text(when (status) { null -> "ثبت حضور"; "present" -> "حاضر"; "absent" -> "غایب"; else -> "رخصتی" }, fontSize = 12.sp)
                 }
             }
         }
-        Text("کسر معاش ماهانه بر اساس ۳۰ روز معیار محاسبه می‌شود. برای اعمال کسر، روز باید در مرکز حاضری با وضعیت «غایب» ثبت شده باشد؛ روزهای بدون ثبت خودکار غیابت محسوب نمی‌شوند.", color = TextMuted, fontSize = 11.sp)
     }
 }
 
