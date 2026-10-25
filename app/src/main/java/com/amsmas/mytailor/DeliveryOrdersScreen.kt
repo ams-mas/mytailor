@@ -31,7 +31,7 @@ internal fun DeliveryOrdersScreen(database: LocalDatabase, onAddOrder: () -> Uni
     var selectedOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
     var paymentAmount by remember { mutableStateOf("") }
     var message by remember { mutableStateOf("") }
-    val orders = remember(search, refreshKey) { database.getReadyForDeliveryOrders(search) }
+    val orders = remember(search, refreshKey, database.revision.intValue) { database.getReadyForDeliveryOrders(search) }
 
     Column(Modifier.fillMaxSize().background(Color(0xFFFAF7F4)).padding(16.dp)) {
         Text("تحویل سفارش‌ها", color = Color(0xFF55191E), fontSize = 24.sp, fontWeight = FontWeight.Bold)
