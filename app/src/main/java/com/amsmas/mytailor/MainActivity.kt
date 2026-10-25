@@ -1115,7 +1115,7 @@ private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') (
 
 @Composable
 private fun DashboardContent(database: LocalDatabase, onOpenDeliveries: () -> Unit) {
-    val orderCounts = database.getOrderCounts()
+    val orderCounts = remember(database.revision.intValue) { database.getOrderCounts() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Burgundy, BurgundyDark))).padding(16.dp),
@@ -1241,7 +1241,7 @@ private fun ActiveOrdersScreen(database: LocalDatabase) {
     var search by remember { mutableStateOf("") }
     var refreshKey by remember { mutableIntStateOf(0) }
     var pendingOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
-    val orders = remember(search, refreshKey) { database.getActiveOrders(search) }
+    val orders = remember(search, refreshKey, database.revision.intValue) { database.getActiveOrders(search) }
 
     Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
         Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
@@ -1304,7 +1304,7 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
-    val customers = remember(search, refreshKey) { database.getCustomers(search.toEnglishDigits()) }
+    val customers = remember(search, refreshKey, database.revision.intValue) { database.getCustomers(search.toEnglishDigits()) }
     if (selectedCustomer != null) {
         CustomerOrderHistoryScreen(database, selectedCustomer!!, activeOnly) { selectedCustomer = null }
         return
@@ -1363,7 +1363,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
     var pendingStatus by remember { mutableStateOf<String?>(null) }
     var pendingCustomerName by remember { mutableStateOf(customer.name) }
     var pendingCustomerPhone by remember { mutableStateOf(customer.phone) }
-    val orders = remember(customer.name, customer.phone, activeOnly, refreshKey) {
+    val orders = remember(customer.name, customer.phone, activeOnly, refreshKey, database.revision.intValue) {
         database.getCustomerOrders(customer.name, customer.phone, activeOnly)
     }
     if (selectedOrder != null) {
