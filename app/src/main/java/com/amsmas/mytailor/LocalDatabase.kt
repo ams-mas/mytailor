@@ -190,12 +190,12 @@ internal class LocalDatabase(context: Context) :
         return rows
     }
 
-    fun saveWorkflowStep(name: String, order: Int) {
+    fun saveWorkflowStep(name: String, order: Int, stepId: Int = 0) {
         val clean = name.trim()
         if (clean.isBlank()) return
         val db = writableDatabase
-        val existingId = db.rawQuery("SELECT id FROM workflow_steps WHERE step_name = ?", arrayOf(clean)).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
-        if (existingId > 0) db.update("workflow_steps", ContentValues().apply { put("step_order", order) }, "id = ?", arrayOf(existingId.toString()))
+        val existingId = if (stepId > 0) stepId else db.rawQuery("SELECT id FROM workflow_steps WHERE step_name = ?", arrayOf(clean)).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+        if (existingId > 0) db.update("workflow_steps", ContentValues().apply { put("step_name", clean); put("step_order", order) }, "id = ?", arrayOf(existingId.toString()))
         else db.insertOrThrow("workflow_steps", null, ContentValues().apply { put("step_name", clean); put("step_order", order) })
         notifyChanged()
     }
@@ -355,11 +355,11 @@ internal class LocalDatabase(context: Context) :
                     db.insertWithOnConflict("order_types", null, ContentValues().apply { put("type_name", name) }, SQLiteDatabase.CONFLICT_IGNORE)
                     val typeId = db.rawQuery("SELECT id FROM order_types WHERE type_name = ?", arrayOf(name)).use { c -> if (c.moveToFirst()) c.getInt(0) else -1 }
                     if (typeId > 0) {
-                        db.delete("measurement_fields", "order_type_id = ?", arrayOf(typeId.toString()))
                         fields.forEachIndexed { index, field ->
-                            db.insert("measurement_fields", null, ContentValues().apply {
+                            db.insertWithOnConflict("measurement_fields", null, ContentValues().apply {
                                 put("order_type_id", typeId); put("field_name", field); put("field_order", index + 1)
-                            })
+                            }, SQLiteDatabase.CONFLICT_IGNORE)
+                            db.update("measurement_fields", ContentValues().apply { put("field_order", index + 1) }, "order_type_id=? AND field_name=?", arrayOf(typeId.toString(), field))
                         }
                     }
                 }
