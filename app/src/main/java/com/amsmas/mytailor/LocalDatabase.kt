@@ -364,7 +364,7 @@ internal class LocalDatabase(context: Context) :
             val earned: Double
             when (worker.payType) {
                 "daily" -> {
-                    units = readableDatabase.rawQuery("SELECT COUNT(*) FROM worker_attendance WHERE worker_id=? AND work_date BETWEEN ? AND ?", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getInt(0) }
+                    units = readableDatabase.rawQuery("SELECT COUNT(*) FROM worker_attendance WHERE worker_id=? AND work_date BETWEEN ? AND ? AND status='present'", arrayOf(worker.id.toString(), start, end)).use { it.moveToFirst(); it.getInt(0) }
                     earned = units * worker.payRate
                 }
                 "weekly" -> { units = ((days + 6) / 7); earned = units * worker.payRate }
