@@ -18,12 +18,14 @@ internal class LocalDatabase(context: Context) :
         db.execSQL("CREATE TABLE workshop_skills (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE)")
         db.execSQL("CREATE TABLE tailors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT NOT NULL, address TEXT NOT NULL DEFAULT '', skills_json TEXT NOT NULL)")
         db.execSQL("CREATE TABLE garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
+        createOrdersTable(db)
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
         if (oldVersion < 2) {
             db.execSQL("CREATE TABLE IF NOT EXISTS garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
         }
+        if (oldVersion < 3) createOrdersTable(db)
     }
 
     fun getSkills(): List<String> {
@@ -101,6 +103,38 @@ internal class LocalDatabase(context: Context) :
             put("skills_json", JSONArray(tailor.skills).toString())
         }
         writableDatabase.insertOrThrow("tailors", null, values)
+    }
+
+
+    private fun createOrdersTable(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT NOT NULL, phone TEXT NOT NULL, garment_model TEXT NOT NULL, measurements_json TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', delivery_date TEXT NOT NULL, price REAL NOT NULL, deposit REAL NOT NULL, paid REAL NOT NULL, remaining REAL NOT NULL, status TEXT NOT NULL DEFAULT 'incomplete')")
+    }
+
+    fun addOrder(order: TailorOrder) {
+        writableDatabase.insertOrThrow("orders", null, ContentValues().apply {
+            put("customer_name", order.customerName)
+            put("phone", order.phone)
+            put("garment_model", order.garmentModel)
+            put("measurements_json", JSONObject(order.measurements).toString())
+            put("notes", order.notes)
+            put("delivery_date", order.deliveryDate)
+            put("price", order.price)
+            put("deposit", order.deposit)
+            put("paid", order.paid)
+            put("remaining", (order.price - order.deposit - order.paid).coerceAtLeast(0.0))
+            put("status", "incomplete")
+        })
+    }
+
+    fun getOrderCounts(): Triple<Int, Int, Int> {
+        fun count(selection: String? = null): Int {
+            val sql = if (selection == null) "SELECT COUNT(*) FROM orders" else "SELECT COUNT(*) FROM orders WHERE $selection"
+            readableDatabase.rawQuery(sql, null).use { cursor ->
+                if (cursor.moveToFirst()) return cursor.getInt(0)
+            }
+            return 0
+        }
+        return Triple(count(), count("status = 'ready'"), count("status != 'ready'"))
     }
 
     fun createBackupJson(): String {
@@ -184,6 +218,6 @@ internal class LocalDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "mytailor_local.db"
-        private const val DATABASE_VERSION = 2
+        private const val DATABASE_VERSION = 3
     }
 }
