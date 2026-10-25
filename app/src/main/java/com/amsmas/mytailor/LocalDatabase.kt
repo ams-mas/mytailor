@@ -311,6 +311,17 @@ internal class LocalDatabase(context: Context) :
         return workerIds
     }
 
+    fun getWorkerAttendanceStatusesForWorker(workerId: Int, startDate: String, endDate: String): Map<String, String> {
+        val result = linkedMapOf<String, String>()
+        readableDatabase.rawQuery(
+            "SELECT work_date,status FROM worker_attendance WHERE worker_id=? AND work_date BETWEEN ? AND ? ORDER BY work_date",
+            arrayOf(workerId.toString(), startDate, endDate)
+        ).use { cursor ->
+            while (cursor.moveToNext()) result[cursor.getString(0)] = cursor.getString(1)
+        }
+        return result
+    }
+
     fun getWorkerAttendanceStatusesForDate(workDate: String): Map<Int, String> {
         val result = mutableMapOf<Int, String>()
         readableDatabase.rawQuery("SELECT worker_id,status FROM worker_attendance WHERE work_date=?", arrayOf(workDate)).use { c ->
