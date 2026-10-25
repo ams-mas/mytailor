@@ -377,7 +377,6 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
 }
 
 @Composable
-@Composable
 internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
     val monthStart = remember { currentJalaliMonthStartIso() }
