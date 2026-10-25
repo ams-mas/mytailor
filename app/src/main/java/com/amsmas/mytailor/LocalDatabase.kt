@@ -249,6 +249,34 @@ internal class LocalDatabase(context: Context) :
         writableDatabase.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
     }
 
+    fun getActiveOrders(search: String = ""): List<DeliveryOrder> {
+        val result = mutableListOf<DeliveryOrder>()
+        val term = search.trim()
+        val sql = """
+            SELECT id, customer_name, phone, garment_model, delivery_date, price, paid, remaining, status
+            FROM orders
+            WHERE status NOT IN ('ready', 'delivered')
+              AND (? = '' OR customer_name LIKE ? OR phone LIKE ?)
+            ORDER BY id DESC
+        """.trimIndent()
+        readableDatabase.rawQuery(sql, arrayOf(term, "%$term%", "%$term%")).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(DeliveryOrder(
+                    id = cursor.getInt(0),
+                    customerName = cursor.getString(1),
+                    phone = cursor.getString(2),
+                    garmentModel = cursor.getString(3),
+                    deliveryDate = cursor.getString(4),
+                    price = cursor.getDouble(5),
+                    paid = cursor.getDouble(6),
+                    remaining = cursor.getDouble(7),
+                    status = cursor.getString(8)
+                ))
+            }
+        }
+        return result
+    }
+
     fun getReadyForDeliveryOrders(search: String = ""): List<DeliveryOrder> {
         val result = mutableListOf<DeliveryOrder>()
         val term = search.trim()
