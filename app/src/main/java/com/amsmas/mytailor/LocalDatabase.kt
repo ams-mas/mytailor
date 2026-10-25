@@ -235,6 +235,23 @@ internal class LocalDatabase(context: Context) :
         return result
     }
 
+    fun updateCustomerDetails(oldName: String, oldPhone: String, newName: String, newPhone: String) {
+        writableDatabase.update(
+            "orders",
+            ContentValues().apply { put("customer_name", newName.trim()); put("phone", newPhone.trim()) },
+            "customer_name = ? AND phone = ?",
+            arrayOf(oldName, oldPhone)
+        )
+    }
+
+    fun deleteCustomerOrders(name: String, phone: String) {
+        writableDatabase.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
+    }
+
+    fun updateOrderStatus(orderId: Int, status: String) {
+        writableDatabase.update("orders", ContentValues().apply { put("status", status) }, "id = ?", arrayOf(orderId.toString()))
+    }
+
     fun updateOrderMeasurements(orderId: Int, measurements: Map<String, String>) {
         val values = ContentValues().apply {
             put("measurements_json", JSONObject(measurements).toString())
