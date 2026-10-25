@@ -385,14 +385,21 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
     var workerType by remember { mutableStateOf("all") }
     var workerQuery by remember { mutableStateOf("") }
     var expandedWorkerId by remember { mutableStateOf<Int?>(null) }
+    var reportError by remember { mutableStateOf("") }
     val revision = database.revision.intValue
     val workers = remember(revision) { database.getWorkers().filter { it.payType == "monthly" || it.payType == "daily" } }
     val selectedWorker = workers.firstOrNull { it.name.contains(workerQuery.trim(), ignoreCase = true) || (workerQuery.toIntOrNull() != null && it.id == workerQuery.toInt()) }
     val validRange = validIsoDate(startDate) && validIsoDate(endDate) && startDate <= endDate
-    val rows = remember(revision, startDate, endDate, workerType, selectedWorker?.id, workerQuery) {
-        if (validRange && (workerQuery.isBlank() || selectedWorker != null))
-            database.getWorkerAttendanceReport(startDate, endDate, workerType, if (workerQuery.isBlank()) null else selectedWorker?.id)
-        else emptyList()
+    val rows = remember(revision, startDate, endDate, workerType, selectedWorker?.id, workerQuery, validRange) {
+        if (!validRange || (workerQuery.isNotBlank() && selectedWorker == null)) {
+            reportError = ""
+            emptyList()
+        } else {
+            runCatching { database.getWorkerAttendanceReport(startDate, endDate, workerType, if (workerQuery.isBlank()) null else selectedWorker?.id) }
+                .onFailure { reportError = it.message ?: "خطا در خواندن گزارش حاضری" }
+                .onSuccess { reportError = "" }
+                .getOrDefault(emptyList())
+        }
     }
     val monthlyRows = rows.filter { it.payType == "monthly" }
     val dailyRows = rows.filter { it.payType == "daily" }
@@ -433,7 +440,8 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
             Text("${blueprintMoney(grandTotal)} افغانی", color = Color.White, fontSize = 23.sp, fontWeight = FontWeight.Bold)
             Text("معاش ماهانه پس از کسر غیابت + معاش روزانه", color = Color.White.copy(alpha = 0.85f), fontSize = 11.sp)
         }
-        if (rows.isEmpty()) Text("برای فیلترهای انتخاب‌شده گزارشی وجود ندارد.", color = TextMuted)
+        if (reportError.isNotBlank()) Text("گزارش باز شد، اما خواندن اطلاعات با خطا روبه‌رو شد: $reportError", color = Color(0xFFB33A32), fontSize = 12.sp)
+        if (rows.isEmpty() && reportError.isBlank()) Text("برای فیلترهای انتخاب‌شده گزارشی وجود ندارد.", color = TextMuted)
         rows.forEach { row ->
             val isMonthly = row.payType == "monthly"
             val deduction = if (isMonthly) (row.absent * (row.rate / 30.0)).coerceAtMost(row.rate) else 0.0
