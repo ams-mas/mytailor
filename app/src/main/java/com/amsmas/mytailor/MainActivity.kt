@@ -1271,7 +1271,23 @@ private fun CustomerListScreen(database: LocalDatabase) {
 
 @Composable
 private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: CustomerSummary, activeOnly: Boolean, onBack: () -> Unit) {
-    val orders = remember(customer.name, customer.phone, activeOnly) { database.getCustomerOrders(customer.name, customer.phone, activeOnly) }
+    var selectedOrder by remember { mutableStateOf<CustomerOrderHistory?>(null) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+    val orders = remember(customer.name, customer.phone, activeOnly, refreshKey) {
+        database.getCustomerOrders(customer.name, customer.phone, activeOnly)
+    }
+    if (selectedOrder != null) {
+        MeasurementEditorScreen(
+            order = selectedOrder!!,
+            onBack = { selectedOrder = null },
+            onSave = { measurements ->
+                database.updateOrderMeasurements(selectedOrder!!.id, measurements)
+                refreshKey++
+                selectedOrder = null
+            }
+        )
+        return
+    }
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
@@ -1300,35 +1316,93 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             }
         }
         Text("مدل لباس‌های سفارش‌داده‌شده", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+        Text("برای دیدن یا تغییر سایزها، مدل لباس را انتخاب کنید.", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(vertical = 5.dp))
         if (orders.isEmpty()) Text("سفارشی برای نمایش وجود ندارد.", color = TextMuted, modifier = Modifier.padding(top = 10.dp))
         else {
-            Text("تعداد سفارش‌های نمایش‌داده‌شده: ${orders.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp))
-            var expandedOrderId by remember { mutableIntStateOf(-1) }
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 orders.chunked(2).forEach { rowOrders ->
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         rowOrders.forEach { order ->
-                            Column(Modifier.weight(1f).padding(bottom = 8.dp).background(if (expandedOrderId == order.id) BurgundySoft else Color.White, RoundedCornerShape(10.dp)).clickable { expandedOrderId = if (expandedOrderId == order.id) -1 else order.id }.padding(10.dp)) {
-                                Text(order.garmentModel.ifBlank { "مدل لباس نامشخص" }, color = BurgundyDark, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-                                Text("سفارش #${order.id.toString().toPersianDigits()}", color = TextMuted, fontSize = 9.sp, modifier = Modifier.padding(top = 4.dp))
-                                Text(if (expandedOrderId == order.id) "بستن جزئیات ▲" else "مشاهده اندازه‌ها ▼", color = Burgundy, fontSize = 9.sp, modifier = Modifier.padding(top = 5.dp))
-                                if (expandedOrderId == order.id) {
-                                    androidx.compose.material3.HorizontalDivider(color = BorderSoft, modifier = Modifier.padding(vertical = 6.dp))
-                                    Text("اندازه‌ها و مشخصات:", color = BurgundyDark, fontSize = 10.sp, fontWeight = FontWeight.Bold)
-                                    val measurementItems = runCatching {
-                                        val json = org.json.JSONObject(order.measurementsJson)
-                                        json.keys().asSequence().map { key -> key to json.optString(key) }.filter { it.second.isNotBlank() }.toList()
-                                    }.getOrDefault(emptyList())
-                                    if (measurementItems.isEmpty()) Text("اندازه‌ای ثبت نشده است.", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
-                                    else measurementItems.forEach { (key, value) -> Text("$key: $value", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp)) }
-                                    if (order.notes.isNotBlank()) Text("توضیحات: ${order.notes}", color = TextDark, fontSize = 10.sp, modifier = Modifier.padding(top = 5.dp))
+                            val measurementItems = remember(order.id, order.measurementsJson) {
+                                runCatching {
+                                    val json = org.json.JSONObject(order.measurementsJson)
+                                    json.keys().asSequence().map { key -> key to json.optString(key) }
+                                        .filter { it.second.isNotBlank() }.toList()
+                                }.getOrDefault(emptyList())
+                            }
+                            Column(
+                                Modifier.weight(1f).padding(bottom = 8.dp)
+                                    .background(Color.White, RoundedCornerShape(10.dp))
+                                    .clickable { selectedOrder = order }
+                                    .padding(12.dp)
+                            ) {
+                                Text(order.garmentModel.ifBlank { "مدل لباس نامشخص" }, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                                Text("سفارش #${order.id.toString().toPersianDigits()}", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                                androidx.compose.material3.HorizontalDivider(color = BorderSoft, modifier = Modifier.padding(vertical = 7.dp))
+                                if (measurementItems.isEmpty()) {
+                                    Text("سایزی ثبت نشده", color = TextMuted, fontSize = 10.sp)
+                                } else {
+                                    measurementItems.forEach { (key, value) ->
+                                        Text("$key: $value", color = TextDark, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                                    }
                                 }
+                                Text("ویرایش سایزها  ✎", color = Burgundy, fontSize = 10.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 8.dp))
                             }
                         }
                         if (rowOrders.size == 1) Spacer(Modifier.weight(1f))
                     }
                 }
             }
+        }
+    }
+}
+
+@Composable
+private fun MeasurementEditorScreen(
+    order: CustomerOrderHistory,
+    onBack: () -> Unit,
+    onSave: (Map<String, String>) -> Unit
+) {
+    val initialMeasurements = remember(order.id) {
+        runCatching {
+            val json = org.json.JSONObject(order.measurementsJson)
+            json.keys().asSequence().associateWith { key -> json.optString(key) }
+        }.getOrDefault(emptyMap())
+    }
+    val values = remember(order.id) { mutableStateMapOf<String, String>().apply { putAll(initialMeasurements) } }
+    Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+            Column(Modifier.weight(1f)) {
+                Text("ویرایش سایزهای لباس", color = BurgundyDark, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+                Text(order.garmentModel, color = TextMuted, fontSize = 13.sp)
+            }
+        }
+        Text("فقط سایزهای ثبت‌شده برای این سفارش نمایش داده می‌شود. تغییرات را ذخیره کنید.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp, bottom = 12.dp))
+        if (values.isEmpty()) {
+            Text("برای این سفارش هنوز سایزی ثبت نشده است.", color = TextMuted, fontSize = 14.sp, modifier = Modifier.padding(vertical = 16.dp))
+        } else {
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+                values.keys.toList().forEach { key ->
+                    OutlinedTextField(
+                        value = values[key].orEmpty(),
+                        onValueChange = { values[key] = it },
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 10.dp),
+                        label = { Text(key) },
+                        singleLine = true,
+                        colors = appFieldColors(),
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                }
+            }
+        }
+        Button(
+            onClick = { onSave(values.toMap()) },
+            modifier = Modifier.fillMaxWidth().padding(top = 12.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Burgundy),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("ذخیره سایزها", color = Color.White, fontWeight = FontWeight.Bold)
         }
     }
 }
