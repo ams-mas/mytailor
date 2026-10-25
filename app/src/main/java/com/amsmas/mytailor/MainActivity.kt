@@ -1222,12 +1222,12 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
-    var sortMode by remember { mutableStateOf("newest") }
+    var filterMode by remember { mutableStateOf("date") }
     val customers = remember(search, refreshKey) { database.getCustomers(search.toEnglishDigits()) }
-    val sortedCustomers = remember(customers, sortMode) {
-        when (sortMode) {
-            "orders" -> customers.sortedByDescending { it.orderCount }
-            "active" -> customers.sortedByDescending { it.activeOrderCount }
+    val sortedCustomers = remember(customers, filterMode) {
+        when (filterMode) {
+            "remaining" -> customers.sortedByDescending { it.remaining }
+            "active" -> customers.filter { it.activeOrderCount > 0 }
             else -> customers
         }
     }
@@ -1243,12 +1243,12 @@ private fun CustomerListScreen(database: LocalDatabase) {
         }, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
         Text("فیلتر مشتریان", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 6.dp, bottom = 3.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(5.dp)) {
-            listOf("newest" to "جدیدترین", "orders" to "بیشترین سفارش", "active" to "سفارش فعال").forEach { (mode, label) ->
+            listOf("date" to "تاریخ سفارش", "remaining" to "باقی‌مانده", "active" to "سفارش فعال").forEach { (mode, label) ->
                 androidx.compose.material3.TextButton(
-                    onClick = { sortMode = mode },
+                    onClick = { filterMode = mode },
                     modifier = Modifier.weight(1f),
                     contentPadding = PaddingValues(horizontal = 3.dp, vertical = 2.dp),
-                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (sortMode == mode) Burgundy else BurgundySoft, contentColor = if (sortMode == mode) Color.White else BurgundyDark)
+                    colors = androidx.compose.material3.ButtonDefaults.textButtonColors(containerColor = if (filterMode == mode) Burgundy else BurgundySoft, contentColor = if (filterMode == mode) Color.White else BurgundyDark)
                 ) { Text(label, fontSize = 10.sp, maxLines = 1) }
             }
         }
