@@ -12,7 +12,7 @@ import org.json.JSONObject
  * Backup/export and restore/import can be added later without changing the app's data model.
  */
 internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
-internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
+internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val measurementsJson: String, val notes: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -226,10 +226,10 @@ internal class LocalDatabase(context: Context) :
     fun getCustomerOrders(name: String, phone: String, activeOnly: Boolean): List<CustomerOrderHistory> {
         val result = mutableListOf<CustomerOrderHistory>()
         val statusFilter = if (activeOnly) " AND status != 'ready'" else ""
-        val sql = "SELECT id, registered_at, delivery_date, garment_model, price, deposit, paid, remaining, status FROM orders WHERE customer_name = ? AND phone = ?$statusFilter ORDER BY id DESC"
+        val sql = "SELECT id, registered_at, delivery_date, garment_model, measurements_json, notes, price, deposit, paid, remaining, status FROM orders WHERE customer_name = ? AND phone = ?$statusFilter ORDER BY id DESC"
         readableDatabase.rawQuery(sql, arrayOf(name, phone)).use { cursor ->
             while (cursor.moveToNext()) {
-                result.add(CustomerOrderHistory(cursor.getInt(0), cursor.getString(1) ?: "", cursor.getString(2) ?: "", cursor.getString(3) ?: "", cursor.getDouble(4), cursor.getDouble(5), cursor.getDouble(6), cursor.getDouble(7), cursor.getString(8) ?: ""))
+                result.add(CustomerOrderHistory(cursor.getInt(0), cursor.getString(1) ?: "", cursor.getString(2) ?: "", cursor.getString(3) ?: "", cursor.getString(4) ?: "{}", cursor.getString(5) ?: "", cursor.getDouble(6), cursor.getDouble(7), cursor.getDouble(8), cursor.getDouble(9), cursor.getString(10) ?: ""))
             }
         }
         return result
