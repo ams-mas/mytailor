@@ -748,30 +748,37 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     var phone by remember { mutableStateOf("") }
     var notes by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
+    var showDatePicker by remember { mutableStateOf(false) }
     var price by remember { mutableStateOf("") }
     var deposit by remember { mutableStateOf("") }
     var paid by remember { mutableStateOf("") }
     var selectedModelName by remember { mutableStateOf("") }
     var measurements by remember { mutableStateOf(mapOf<String, String>()) }
     var message by remember { mutableStateOf("") }
+    var modelMenuExpanded by remember { mutableStateOf(false) }
+    val datePickerState = androidx.compose.material3.rememberDatePickerState()
     val models = remember(database) { database.getGarmentModels() }
     val selectedModel = models.firstOrNull { it.name == selectedModelName }
     val total = price.toDoubleOrNull() ?: 0.0
     val advance = deposit.toDoubleOrNull() ?: 0.0
     val payment = paid.toDoubleOrNull() ?: 0.0
     val remaining = (total - advance - payment).coerceAtLeast(0.0)
+    val fieldShape = RoundedCornerShape(14.dp)
 
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Button(onClick = onBack, colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("بازگشت") }
-            Text("ثبت سفارش", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+            Box(Modifier.fillMaxWidth().height(52.dp), contentAlignment = Alignment.Center) {
+                Text("ثبت سفارش", color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
+                Button(onClick = onBack, modifier = Modifier.align(Alignment.CenterStart), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
+                    Text("‹", fontSize = 24.sp)
+                }
+            }
         }
         Spacer(Modifier.height(14.dp))
-        OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Text("انتخاب مدل لباس", color = BurgundyDark, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
-        var modelMenuExpanded by remember { mutableStateOf(false) }
         Box {
             OutlinedTextField(
                 value = selectedModelName,
@@ -782,7 +789,8 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 label = { Text("مدل لباس") },
                 placeholder = { Text(if (models.isEmpty()) "ابتدا مدل لباس را در تنظیمات ثبت کنید" else "یک مدل انتخاب کنید") },
                 trailingIcon = { Text("▾", color = BurgundyDark, modifier = Modifier.clickable { if (models.isNotEmpty()) modelMenuExpanded = true }.padding(horizontal = 12.dp)) },
-                colors = appFieldColors()
+                colors = appFieldColors(),
+                shape = fieldShape
             )
             Box(Modifier.matchParentSize().clickable { if (models.isNotEmpty()) modelMenuExpanded = true })
             androidx.compose.material3.DropdownMenu(
@@ -806,25 +814,36 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
         if (selectedModel != null) {
             Text("اندازه‌های لباس", color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
             selectedModel.measurements.forEach { measurement ->
-                OutlinedTextField(value = measurements[measurement] ?: "", onValueChange = { value -> measurements = measurements.toMutableMap().also { it[measurement] = value } }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), label = { Text(measurement) }, singleLine = true, colors = appFieldColors())
+                OutlinedTextField(value = measurements[measurement] ?: "", onValueChange = { value -> measurements = measurements.toMutableMap().also { it[measurement] = value } }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), label = { Text(measurement) }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
             }
         }
-        OutlinedTextField(value = notes, onValueChange = { notes = it }, modifier = Modifier.fillMaxWidth(), label = { Text("توضیحات بیشتر") }, minLines = 3, colors = appFieldColors())
+        OutlinedTextField(value = notes, onValueChange = { notes = it }, modifier = Modifier.fillMaxWidth(), label = { Text("توضیحات بیشتر") }, minLines = 3, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = deliveryDate, onValueChange = { deliveryDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تاریخ تحویل سفارش (مثلاً ۱۴۰۵/۰۸/۱۰)") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(
+            value = deliveryDate,
+            onValueChange = {},
+            readOnly = true,
+            modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
+            label = { Text("تاریخ تحویل سفارش") },
+            placeholder = { Text("از تقویم انتخاب کنید") },
+            trailingIcon = { androidx.compose.material3.TextButton(onClick = { showDatePicker = true }) { Text("▦", color = BurgundyDark, fontSize = 20.sp) } },
+            singleLine = true,
+            colors = appFieldColors(),
+            shape = fieldShape
+        )
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = price, onValueChange = { price = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("قیمت (افغانی)") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(value = price, onValueChange = { price = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("قیمت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = deposit, onValueChange = { deposit = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("بیعانه (افغانی)") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(value = deposit, onValueChange = { deposit = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("بیعانه") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
-        OutlinedTextField(value = paid, onValueChange = { paid = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("پرداخت (افغانی)") }, singleLine = true, colors = appFieldColors())
-        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()} افغانی", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 14.dp))
+        OutlinedTextField(value = paid, onValueChange = { paid = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("پرداخت") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
+        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()}", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 14.dp))
         if (message.isNotBlank()) Text(message, color = Color(0xFFB33A32), fontSize = 13.sp)
         Button(onClick = {
             when {
                 customerName.isBlank() -> message = "اسم مشتری را وارد کنید."
                 selectedModel == null -> message = "مدل لباس را انتخاب کنید."
-                deliveryDate.isBlank() -> message = "تاریخ تحویل را وارد کنید."
+                deliveryDate.isBlank() -> message = "تاریخ تحویل را انتخاب کنید."
                 total <= 0 -> message = "قیمت را وارد کنید."
                 advance < 0 || payment < 0 || advance + payment > total -> message = "بیعانه و پرداخت را بررسی کنید؛ مجموع آن‌ها نباید از قیمت بیشتر باشد."
                 else -> {
@@ -833,8 +852,27 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                     }.onSuccess { onSave() }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
                 }
             }
-        }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ثبت سفارش", fontWeight = FontWeight.Bold) }
+        }, modifier = Modifier.fillMaxWidth().height(54.dp), shape = RoundedCornerShape(14.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ثبت سفارش", fontWeight = FontWeight.Bold, fontSize = 16.sp) }
         Spacer(Modifier.height(24.dp))
+    }
+
+    if (showDatePicker) {
+        androidx.compose.material3.DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        deliveryDate = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.US).format(java.util.Date(millis))
+                    }
+                    showDatePicker = false
+                }) { Text("تأیید", color = Burgundy) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { showDatePicker = false }) { Text("لغو", color = TextMuted) }
+            }
+        ) {
+            androidx.compose.material3.DatePicker(state = datePickerState)
+        }
     }
 }
 
