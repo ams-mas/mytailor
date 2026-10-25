@@ -873,7 +873,7 @@ private fun JalaliDatePickerDialog(
     val months = listOf("حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت")
     val weekdays = listOf("ش", "ی", "د", "س", "چ", "پ", "ج")
     val today = remember { gregorianToJalali(java.util.Calendar.getInstance()) }
-    val initialParts = initialDate.map { it.toEnglishDigits() }.split("/")
+    val initialParts = initialDate.toEnglishDigits().split("/")
     var year by remember { mutableIntStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: today.first) }
     var month by remember { mutableIntStateOf((initialParts.getOrNull(1)?.toIntOrNull() ?: today.second) - 1) }
     var day by remember { mutableIntStateOf(initialParts.getOrNull(2)?.toIntOrNull() ?: today.third) }
