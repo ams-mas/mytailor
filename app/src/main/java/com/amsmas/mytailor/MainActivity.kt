@@ -299,6 +299,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
     var showWorkerManagement by remember { mutableStateOf(false) }
+    var showWorkerMenu by remember { mutableStateOf(false) }
     var showWorkerAttendance by remember { mutableStateOf(false) }
     var showWorkerAttendanceReports by remember { mutableStateOf(false) }
     var showWorkflowSettings by remember { mutableStateOf(false) }
@@ -326,6 +327,13 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 showWorkerAttendanceReports -> WorkerAttendanceReportsScreen(database = database, onBack = { showWorkerAttendanceReports = false })
                 showWorkerAttendance -> WorkerDailyAttendanceScreen(database = database, onBack = { showWorkerAttendance = false }, onOpenReports = { showWorkerAttendanceReports = true })
+                showWorkerMenu -> WorkerMenuScreen(
+                    onBack = { showWorkerMenu = false },
+                    onRegister = { showWorkerMenu = false; showWorkerManagement = true },
+                    onList = { showWorkerMenu = false; showWorkerManagement = true },
+                    onPayroll = { showWorkerMenu = false; selected = MainTab.FINANCE },
+                    onAttendance = { showWorkerMenu = false; showWorkerAttendance = true }
+                )
                 showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
                 showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
                 showProductionWorkflow -> ProductionWorkflowScreen(database = database, onBack = { showProductionWorkflow = false })
@@ -410,7 +418,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                                         }, Modifier.weight(1f)) {
                                             when (item.third) {
                                                 "workshop" -> showWorkshopSettings = true
-                                                "workers" -> showWorkerManagement = true
+                                                "workers" -> showWorkerMenu = true
                                                 "attendance" -> showWorkerAttendance = true
                                                 "attendanceReports" -> showWorkerAttendanceReports = true
                                                 "workflow" -> showWorkflowSettings = true
@@ -1963,3 +1971,38 @@ internal fun appFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedLeadingIconColor = Burgundy,
     focusedTrailingIconColor = Burgundy
 )
+
+@Composable
+private fun WorkerMenuScreen(
+    onBack: () -> Unit,
+    onRegister: () -> Unit,
+    onList: () -> Unit,
+    onPayroll: () -> Unit,
+    onAttendance: () -> Unit
+) {
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp)
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text("مدیریت کارمندان", color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold)
+                Text("ثبت، فهرست، معاش و حاضری کارمندان", color = TextMuted, fontSize = 12.sp)
+            }
+            TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+        }
+        val items = listOf(
+            Triple("ثبت کارمند جدید", "♙", onRegister),
+            Triple("فهرست کارمندان", "☷", onList),
+            Triple("معاش کارمندان", "؋", onPayroll),
+            Triple("حاضری کارمندان", "✓", onAttendance)
+        )
+        items.chunked(2).forEach { rowItems ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                rowItems.forEach { item ->
+                    SettingsMenuItem(item.first, item.second, Color(0xFFF1E9E4), Modifier.weight(1f)) { item.third() }
+                }
+            }
+        }
+    }
+}
