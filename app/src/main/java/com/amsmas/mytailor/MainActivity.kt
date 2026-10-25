@@ -301,6 +301,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     var showWorkerManagement by remember { mutableStateOf(false) }
     var showWorkerMenu by remember { mutableStateOf(false) }
     var showWorkerList by remember { mutableStateOf(false) }
+    var showWorkerPayroll by remember { mutableStateOf(false) }
     var showWorkerAttendance by remember { mutableStateOf(false) }
     var showWorkerAttendanceReports by remember { mutableStateOf(false) }
     var showWorkflowSettings by remember { mutableStateOf(false) }
@@ -328,12 +329,13 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 showWorkerAttendanceReports -> WorkerAttendanceReportsScreen(database = database, onBack = { showWorkerAttendanceReports = false })
                 showWorkerAttendance -> WorkerDailyAttendanceScreen(database = database, onBack = { showWorkerAttendance = false }, onOpenReports = { showWorkerAttendanceReports = true })
+                showWorkerPayroll -> WorkerPayrollScreen(database = database, onBack = { showWorkerPayroll = false })
                 showWorkerList -> WorkerListScreen(database = database, onBack = { showWorkerList = false })
                 showWorkerMenu -> WorkerMenuScreen(
                     onBack = { showWorkerMenu = false },
                     onRegister = { showWorkerMenu = false; showWorkerManagement = true },
                     onList = { showWorkerMenu = false; showWorkerList = true },
-                    onPayroll = { showWorkerMenu = false; selected = MainTab.FINANCE },
+                    onPayroll = { showWorkerMenu = false; showWorkerPayroll = true },
                     onAttendance = { showWorkerMenu = false; showWorkerAttendance = true }
                 )
                 showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
@@ -524,10 +526,6 @@ private fun FinanceScreen(database: LocalDatabase) {
                 Text("مدیریت مالی", color = BurgundyDark, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("درآمد، پرداخت‌ها و قرض مشتریان", color = TextMuted, fontSize = 13.sp)
             }
-        }
-
-        Button(onClick = { showPayroll = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(12.dp)) {
-            Text("معاش و پرداخت کارمندان  ›", fontWeight = FontWeight.SemiBold)
         }
 
         Column(
