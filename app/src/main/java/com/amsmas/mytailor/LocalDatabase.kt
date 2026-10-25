@@ -9,7 +9,7 @@ import org.json.JSONArray
 import org.json.JSONObject
 
 private const val DATABASE_NAME = "mytailor_local.db"
-private const val DATABASE_VERSION = 4
+private const val DATABASE_VERSION = 5
 
 /**
  * On-device database. Records remain available after the app is closed or the phone restarts.
@@ -31,6 +31,12 @@ internal class LocalDatabase(context: Context) :
         db.execSQL("CREATE TABLE tailors (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL, phone TEXT NOT NULL, address TEXT NOT NULL DEFAULT '', skills_json TEXT NOT NULL)")
         db.execSQL("CREATE TABLE garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
         createOrdersTable(db)
+        createOrderPaymentsTable(db)
+    }
+
+    private fun createOrderPaymentsTable(db: SQLiteDatabase) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS order_payments (id INTEGER PRIMARY KEY AUTOINCREMENT, order_id INTEGER NOT NULL, amount REAL NOT NULL CHECK(amount > 0), payment_date TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, note TEXT NOT NULL DEFAULT '', FOREIGN KEY(order_id) REFERENCES orders(id) ON DELETE CASCADE)")
+        db.execSQL("CREATE INDEX IF NOT EXISTS idx_order_payments_date ON order_payments(payment_date)")
     }
 
     override fun onUpgrade(db: SQLiteDatabase, oldVersion: Int, newVersion: Int) {
@@ -39,6 +45,15 @@ internal class LocalDatabase(context: Context) :
         }
         if (oldVersion < 3) createOrdersTable(db)
         if (oldVersion >= 3 && oldVersion < 4) db.execSQL("ALTER TABLE orders ADD COLUMN registered_at TEXT NOT NULL DEFAULT ''")
+        if (oldVersion < 5) {
+            createOrderPaymentsTable(db)
+            // Preserve historical totals when upgrading existing installations.
+            db.execSQL("""
+                INSERT INTO order_payments (order_id, amount, payment_date, note)
+                SELECT id, deposit + paid, COALESCE(NULLIF(registered_at, ''), CURRENT_TIMESTAMP), 'ثبت تاریخی هنگام به‌روزرسانی'
+                FROM orders WHERE deposit + paid > 0
+            """.trimIndent())
+        }
     }
 
     fun getSkills(): List<String> {
@@ -127,20 +142,78 @@ internal class LocalDatabase(context: Context) :
     }
 
     fun addOrder(order: TailorOrder) {
-        writableDatabase.insertOrThrow("orders", null, ContentValues().apply {
-            put("customer_name", order.customerName)
-            put("phone", order.phone)
-            put("garment_model", order.garmentModel)
-            put("measurements_json", JSONObject(order.measurements).toString())
-            put("notes", order.notes)
-            put("delivery_date", order.deliveryDate)
-            put("price", order.price)
-            put("deposit", order.deposit)
-            put("paid", order.paid)
-            put("remaining", (order.price - order.deposit - order.paid).coerceAtLeast(0.0))
-            put("status", "incomplete")
-        })
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val orderId = db.insertOrThrow("orders", null, ContentValues().apply {
+                put("customer_name", order.customerName)
+                put("phone", order.phone)
+                put("garment_model", order.garmentModel)
+                put("measurements_json", JSONObject(order.measurements).toString())
+                put("notes", order.notes)
+                put("delivery_date", order.deliveryDate)
+                put("price", order.price)
+                put("deposit", order.deposit)
+                put("paid", order.paid)
+                put("remaining", (order.price - order.deposit - order.paid).coerceAtLeast(0.0))
+                put("status", "incomplete")
+            })
+            val initialPayment = order.deposit + order.paid
+            if (initialPayment > 0) {
+                db.insertOrThrow("order_payments", null, ContentValues().apply {
+                    put("order_id", orderId)
+                    put("amount", initialPayment)
+                    put("note", "پیش‌پرداخت و پرداخت هنگام ثبت سفارش")
+                })
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
         notifyChanged()
+    }
+
+    /**
+     * Records a customer payment against their oldest outstanding orders first.
+     * The payment and order balances are updated atomically.
+     */
+    fun recordCustomerPayment(customerName: String, phone: String, amount: Double): Boolean {
+        if (!amount.isFinite() || amount <= 0) return false
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val outstanding = mutableListOf<Triple<Int, Double, Double>>()
+            db.rawQuery(
+                "SELECT id, remaining, paid FROM orders WHERE customer_name = ? AND phone = ? AND remaining > 0 ORDER BY id ASC",
+                arrayOf(customerName, phone)
+            ).use { cursor ->
+                while (cursor.moveToNext()) outstanding.add(Triple(cursor.getInt(0), cursor.getDouble(1), cursor.getDouble(2)))
+            }
+            val totalDue = outstanding.sumOf { it.second }
+            if (totalDue <= 0 || amount > totalDue + 0.0001) return false
+            var left = amount
+            outstanding.forEach { (orderId, due, paid) ->
+                if (left > 0.0001) {
+                    val applied = minOf(left, due)
+                    val remaining = (due - applied).coerceAtLeast(0.0)
+                    db.update("orders", ContentValues().apply {
+                        put("paid", paid + applied)
+                        put("remaining", remaining)
+                    }, "id = ?", arrayOf(orderId.toString()))
+                    db.insertOrThrow("order_payments", null, ContentValues().apply {
+                        put("order_id", orderId)
+                        put("amount", applied)
+                        put("note", "پرداخت مشتری")
+                    })
+                    left -= applied
+                }
+            }
+            db.setTransactionSuccessful()
+        } finally {
+            db.endTransaction()
+        }
+        notifyChanged()
+        return true
     }
 
     /**
@@ -337,6 +410,13 @@ internal class LocalDatabase(context: Context) :
                 put("remaining", 0.0)
                 put("status", "delivered")
             }, "id = ? AND status = 'ready'", arrayOf(orderId.toString()))
+            if (paymentAmount > 0) {
+                db.insertOrThrow("order_payments", null, ContentValues().apply {
+                    put("order_id", orderId)
+                    put("amount", paymentAmount)
+                    put("note", "پرداخت هنگام تحویل سفارش")
+                })
+            }
             db.setTransactionSuccessful()
             notifyChanged()
             return true
@@ -463,15 +543,15 @@ internal class LocalDatabase(context: Context) :
 
     fun getIncomeForPeriod(period: String, startDate: String = "", endDate: String = ""): Double {
         val where = when (period) {
-            "week" -> "date(registered_at) >= date('now', '-6 days') AND date(registered_at) <= date('now')"
-            "month" -> "strftime('%Y-%m', registered_at) = strftime('%Y-%m', 'now')"
-            "year" -> "strftime('%Y', registered_at) = strftime('%Y', 'now')"
-            "custom" -> "date(registered_at) >= date(?) AND date(registered_at) <= date(?)"
-            else -> "date(registered_at) = date('now')"
+            "week" -> "date(payment_date) >= date('now', '-6 days') AND date(payment_date) <= date('now')"
+            "month" -> "strftime('%Y-%m', payment_date) = strftime('%Y-%m', 'now')"
+            "year" -> "strftime('%Y', payment_date) = strftime('%Y', 'now')"
+            "custom" -> "date(payment_date) >= date(?) AND date(payment_date) <= date(?)"
+            else -> "date(payment_date) = date('now')"
         }
         val args = if (period == "custom") arrayOf(startDate, endDate) else null
         readableDatabase.rawQuery(
-            "SELECT COALESCE(SUM(deposit + paid), 0) FROM orders WHERE $where",
+            "SELECT COALESCE(SUM(amount), 0) FROM order_payments WHERE $where",
             args
         ).use { cursor -> return if (cursor.moveToFirst()) cursor.getDouble(0) else 0.0 }
     }
