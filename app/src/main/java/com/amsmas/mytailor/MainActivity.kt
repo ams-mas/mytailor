@@ -742,7 +742,6 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 }
 
 
-@OptIn(androidx.compose.material3.ExperimentalMaterial3Api::class)
 @Composable
 private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: () -> Unit) {
     var customerName by remember { mutableStateOf("") }
@@ -757,7 +756,6 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     var measurements by remember { mutableStateOf(mapOf<String, String>()) }
     var message by remember { mutableStateOf("") }
     var modelMenuExpanded by remember { mutableStateOf(false) }
-    val datePickerState = androidx.compose.material3.rememberDatePickerState()
     val models = remember(database) { database.getGarmentModels() }
     val selectedModel = models.firstOrNull { it.name == selectedModelName }
     val total = price.toDoubleOrNull() ?: 0.0
@@ -825,7 +823,7 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
             onValueChange = {},
             readOnly = true,
             modifier = Modifier.fillMaxWidth().clickable { showDatePicker = true },
-            label = { Text("تاریخ تحویل سفارش") },
+            label = { Text("تاریخ تحویل سفارش (هجری شمسی)") },
             placeholder = { Text("از تقویم انتخاب کنید") },
             trailingIcon = { androidx.compose.material3.TextButton(onClick = { showDatePicker = true }) { Text("▦", color = BurgundyDark, fontSize = 20.sp) } },
             singleLine = true,
@@ -858,21 +856,91 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
     }
 
     if (showDatePicker) {
-        androidx.compose.material3.DatePickerDialog(
-            onDismissRequest = { showDatePicker = false },
-            confirmButton = {
-                androidx.compose.material3.TextButton(onClick = {
-                    datePickerState.selectedDateMillis?.let { millis ->
-                        deliveryDate = java.text.SimpleDateFormat("yyyy/MM/dd", java.util.Locale.US).format(java.util.Date(millis))
-                    }
-                    showDatePicker = false
-                }) { Text("تأیید", color = Burgundy) }
-            },
-            dismissButton = {
-                androidx.compose.material3.TextButton(onClick = { showDatePicker = false }) { Text("لغو", color = TextMuted) }
-            }
+        JalaliDatePickerDialog(
+            initialDate = deliveryDate,
+            onDismiss = { showDatePicker = false },
+            onDateSelected = { selected -> deliveryDate = selected; showDatePicker = false }
+        )
+    }
+}
+
+@Composable
+private fun JalaliDatePickerDialog(
+    initialDate: String,
+    onDismiss: () -> Unit,
+    onDateSelected: (String) -> Unit
+) {
+    val months = listOf("حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت")
+    val weekdays = listOf("ش", "ی", "د", "س", "چ", "پ", "ج")
+    val today = remember { android.icu.util.PersianCalendar() }
+    val initialParts = initialDate.split("/")
+    var year by remember { mutableIntStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: today.get(android.icu.util.Calendar.YEAR)) }
+    var month by remember { mutableIntStateOf((initialParts.getOrNull(1)?.toIntOrNull() ?: (today.get(android.icu.util.Calendar.MONTH) + 1)) - 1) }
+    var day by remember { mutableIntStateOf(initialParts.getOrNull(2)?.toIntOrNull() ?: today.get(android.icu.util.Calendar.DAY_OF_MONTH)) }
+    val calendar = remember(year, month) {
+        android.icu.util.PersianCalendar().apply {
+            clear()
+            set(android.icu.util.Calendar.YEAR, year)
+            set(android.icu.util.Calendar.MONTH, month)
+            set(android.icu.util.Calendar.DAY_OF_MONTH, 1)
+        }
+    }
+    val daysInMonth = calendar.getActualMaximum(android.icu.util.Calendar.DAY_OF_MONTH)
+    val firstDayOffset = calendar.get(android.icu.util.Calendar.DAY_OF_WEEK) % 7
+    val selectedDay = day.coerceIn(1, daysInMonth)
+
+    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+        Column(
+            Modifier.fillMaxWidth().background(PageBg, RoundedCornerShape(24.dp)).padding(18.dp),
+            horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            androidx.compose.material3.DatePicker(state = datePickerState)
+            Text("انتخاب تاریخ هجری شمسی", color = BurgundyDark, fontSize = 19.sp, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                androidx.compose.material3.TextButton(onClick = {
+                    if (month == 0) { month = 11; year-- } else month--
+                    day = 1
+                }) { Text("‹", color = Burgundy, fontSize = 26.sp) }
+                Text("${months[month]} $year".toPersianDigits(), color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                androidx.compose.material3.TextButton(onClick = {
+                    if (month == 11) { month = 0; year++ } else month++
+                    day = 1
+                }) { Text("›", color = Burgundy, fontSize = 26.sp) }
+            }
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                weekdays.forEach { weekday ->
+                    Box(Modifier.weight(1f).height(34.dp), contentAlignment = Alignment.Center) {
+                        Text(weekday, color = Burgundy, fontWeight = FontWeight.Bold)
+                    }
+                }
+            }
+            val cellCount = firstDayOffset + daysInMonth
+            val rows = (cellCount + 6) / 7
+            repeat(rows) { rowIndex ->
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
+                    repeat(7) { columnIndex ->
+                        val dateNumber = rowIndex * 7 + columnIndex - firstDayOffset + 1
+                        Box(Modifier.weight(1f).height(42.dp), contentAlignment = Alignment.Center) {
+                            if (dateNumber in 1..daysInMonth) {
+                                val isSelected = dateNumber == selectedDay
+                                Box(
+                                    Modifier.fillMaxSize().padding(2.dp)
+                                        .background(if (isSelected) Burgundy else Color.Transparent, RoundedCornerShape(12.dp))
+                                        .clickable { day = dateNumber },
+                                    contentAlignment = Alignment.Center
+                                ) {
+                                    Text(dateNumber.toString().toPersianDigits(), color = if (isSelected) Color.White else TextDark, fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = onDismiss, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("لغو") }
+                Button(onClick = { onDateSelected("$year/${(month + 1).toString().padStart(2, '0')}/${selectedDay.toString().padStart(2, '0')}".toPersianDigits()) }, modifier = Modifier.weight(1f), shape = RoundedCornerShape(12.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("انتخاب تاریخ") }
+            }
         }
     }
 }
