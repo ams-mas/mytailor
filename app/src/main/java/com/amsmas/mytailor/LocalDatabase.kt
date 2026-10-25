@@ -8,6 +8,9 @@ import androidx.compose.runtime.mutableIntStateOf
 import org.json.JSONArray
 import org.json.JSONObject
 
+private const val DATABASE_NAME = "mytailor_local.db"
+private const val DATABASE_VERSION = 4
+
 /**
  * On-device database. Records remain available after the app is closed or the phone restarts.
  * Backup/export and restore/import can be added later without changing the app's data model.
