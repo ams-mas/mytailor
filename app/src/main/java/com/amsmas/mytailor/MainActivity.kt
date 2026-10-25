@@ -1237,6 +1237,68 @@ private fun RecentOrder(name: String, work: String, date: String, status: String
 }
 
 @Composable
+private fun ActiveOrdersScreen(database: LocalDatabase) {
+    var search by remember { mutableStateOf("") }
+    var refreshKey by remember { mutableIntStateOf(0) }
+    var pendingOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
+    val orders = remember(search, refreshKey) { database.getActiveOrders(search) }
+
+    Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
+        Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Text("سفارش‌هایی که هنوز تکمیل نشده‌اند", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        OutlinedTextField(
+            value = search,
+            onValueChange = { search = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("جستجو با نام یا شماره تماس مشتری") },
+            colors = appFieldColors(),
+            shape = RoundedCornerShape(16.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        if (orders.isEmpty()) {
+            Text(if (search.isBlank()) "سفارش فعال وجود ندارد." else "سفارشی با این نام یا شماره تماس پیدا نشد.", color = TextMuted, modifier = Modifier.padding(top = 16.dp))
+        } else {
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+                orders.forEach { order ->
+                    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).background(CardBg, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                        Text(order.customerName, color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("شماره تماس: ${order.phone}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+                        Text("مدل لباس: ${order.garmentModel}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                        Text("شماره سفارش: ${order.id.toString().toPersianDigits()}", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(top = 3.dp))
+                        Text("وضعیت: در حال انجام", color = Color(0xFFB7791F), fontSize = 12.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 4.dp))
+                        Button(
+                            onClick = { pendingOrder = order },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Burgundy),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text("تغییر به تکمیل‌شده") }
+                    }
+                }
+            }
+        }
+    }
+    if (pendingOrder != null) {
+        val order = pendingOrder!!
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingOrder = null },
+            title = { Text("تأیید تکمیل سفارش") },
+            text = { Text("آیا سفارش «${order.garmentModel}» برای مشتری ${order.customerName} تکمیل شده و آماده تحویل است؟") },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    database.updateOrderStatus(order.id, "ready")
+                    pendingOrder = null
+                    refreshKey++
+                }) { Text("بله، تکمیل شده", color = Burgundy) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { pendingOrder = null }) { Text("انصراف") }
+            }
+        )
+    }
+}
+
+@Composable
 private fun CustomerListScreen(database: LocalDatabase) {
     var search by remember { mutableStateOf("") }
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
