@@ -1145,7 +1145,7 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 total <= 0 -> message = "قیمت را وارد کنید."
                 payment < 0 || payment > total -> message = "مقدار پرداخت نباید از قیمت بیشتر باشد."
                 else -> {
-                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment, address.trim())
+                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), jalaliDateToIso(deliveryDate.trim()), total, 0.0, payment, address.trim())
                     runCatching {
                         database.addOrder(order)
                     }.onSuccess { onSave(order) }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
@@ -1179,7 +1179,7 @@ private fun OrderSuccessScreen(order: TailorOrder, onPrint: () -> Unit, onDone: 
             ReceiptRow("مشتری", order.customerName)
             ReceiptRow("شماره تماس", order.phone.ifBlank { "—" })
             ReceiptRow("مدل لباس", order.garmentModel)
-            ReceiptRow("تاریخ تحویل", order.deliveryDate)
+            ReceiptRow("تاریخ تحویل", displayShopDate(order.deliveryDate))
             ReceiptRow("قیمت", formatReceiptAmount(order.price))
             ReceiptRow("پرداخت", formatReceiptAmount(order.paid))
             ReceiptRow("باقیمانده", formatReceiptAmount(remaining))
@@ -1221,7 +1221,7 @@ private fun printOrderReceipt(context: Context, order: TailorOrder) {
         <tr><td>نام مشتری</td><td>${escapeReceiptHtml(order.customerName)}</td></tr>
         <tr><td>شماره تماس</td><td>${escapeReceiptHtml(order.phone.ifBlank { "—" })}</td></tr>
         <tr><td>مدل لباس</td><td>${escapeReceiptHtml(order.garmentModel)}</td></tr>
-        <tr><td>تاریخ تحویل</td><td>${escapeReceiptHtml(order.deliveryDate)}</td></tr>
+        <tr><td>تاریخ تحویل</td><td>${escapeReceiptHtml(displayShopDate(order.deliveryDate))}</td></tr>
         <tr><td>قیمت</td><td>${formatReceiptAmount(order.price)}</td></tr>
         <tr><td>پرداخت</td><td>${formatReceiptAmount(order.paid)}</td></tr>
         <tr class="total"><td>باقیمانده</td><td>${formatReceiptAmount(remaining)}</td></tr>
@@ -1406,6 +1406,8 @@ internal fun jalaliDateToIso(jalali: String): String {
     val g = jalaliToGregorian(jy, jm, jd)
     return "${g.first}-${g.second.toString().padStart(2,'0')}-${g.third.toString().padStart(2,'0')}"
 }
+internal fun displayShopDate(value: String): String = if (value.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) isoDateToJalali(value) else value
+
 internal fun currentJalaliMonthStartIso(): String {
     val todayIso = java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.US).format(java.util.Date())
     val jalali = isoDateToJalali(todayIso).toEnglishDigits().split("/")
