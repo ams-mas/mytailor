@@ -1221,13 +1221,29 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var search by remember { mutableStateOf("") }
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
-    val customers = remember(search) { database.getCustomers(search.toEnglishDigits()) }
+    var refreshKey by remember { mutableIntStateOf(0) }
+    var sampleMessage by remember { mutableStateOf("") }
+    val customers = remember(search, refreshKey) { database.getCustomers(search.toEnglishDigits()) }
     if (selectedCustomer != null) {
         CustomerOrderHistoryScreen(database, selectedCustomer!!, activeOnly) { selectedCustomer = null }
         return
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp)) {
         Text("لیست مشتریان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Button(
+            onClick = {
+                val added = database.addSampleCustomers()
+                refreshKey++
+                sampleMessage = if (added > 0) "اطلاعات نمونه برای ${added.toString().toPersianDigits()} مشتری اضافه شد." else "مشتریان نمونه قبلاً اضافه شده‌اند."
+            },
+            modifier = Modifier.fillMaxWidth().padding(top = 6.dp, bottom = 4.dp),
+            colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
+        ) {
+            Text("افزودن ۱۵ مشتری نمونه", color = Color.White)
+        }
+        if (sampleMessage.isNotBlank()) {
+            Text(sampleMessage, color = BurgundyDark, fontSize = 11.sp, modifier = Modifier.padding(bottom = 4.dp))
+        }
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), label = { Text("جستجو با نام یا شماره تلفن") }, singleLine = true, trailingIcon = {
             if (search.isNotEmpty()) androidx.compose.material3.TextButton(onClick = { search = "" }) { Text("پاک", color = Burgundy) }
             else Text("⌕", color = BurgundyDark, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 12.dp))
