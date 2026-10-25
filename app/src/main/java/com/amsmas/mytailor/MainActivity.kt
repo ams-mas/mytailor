@@ -1273,6 +1273,14 @@ private fun CustomerListScreen(database: LocalDatabase) {
 private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: CustomerSummary, activeOnly: Boolean, onBack: () -> Unit) {
     var selectedOrder by remember { mutableStateOf<CustomerOrderHistory?>(null) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var editCustomer by remember { mutableStateOf(false) }
+    var confirmCustomerSave by remember { mutableStateOf(false) }
+    var confirmCustomerDelete by remember { mutableStateOf(false) }
+    var pendingMeasurements by remember { mutableStateOf<Map<String, String>?>(null) }
+    var statusOrder by remember { mutableStateOf<CustomerOrderHistory?>(null) }
+    var pendingStatus by remember { mutableStateOf<String?>(null) }
+    var pendingCustomerName by remember { mutableStateOf(customer.name) }
+    var pendingCustomerPhone by remember { mutableStateOf(customer.phone) }
     val orders = remember(customer.name, customer.phone, activeOnly, refreshKey) {
         database.getCustomerOrders(customer.name, customer.phone, activeOnly)
     }
@@ -1280,13 +1288,76 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
         MeasurementEditorScreen(
             order = selectedOrder!!,
             onBack = { selectedOrder = null },
-            onSave = { measurements ->
-                database.updateOrderMeasurements(selectedOrder!!.id, measurements)
-                refreshKey++
-                selectedOrder = null
-            }
+            onSave = { measurements -> pendingMeasurements = measurements }
         )
         return
+    }
+    if (editCustomer) {
+        CustomerDetailsEditor(
+            customer = customer,
+            onBack = { editCustomer = false },
+            onSaveRequest = { newName, newPhone ->
+                pendingCustomerName = newName
+                pendingCustomerPhone = newPhone
+                confirmCustomerSave = true
+            }
+        )
+        if (confirmCustomerSave) {
+            androidx.compose.material3.AlertDialog(
+                onDismissRequest = { confirmCustomerSave = false },
+                title = { Text("تأیید تغییر مشخصات") },
+                text = { Text("آیا می‌خواهید مشخصات مشتری را در تمام سفارش‌های او تغییر دهید؟") },
+                confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                    database.updateCustomerDetails(customer.name, customer.phone, pendingCustomerName, pendingCustomerPhone)
+                    confirmCustomerSave = false
+                    editCustomer = false
+                    onBack()
+                }) { Text("بله، ذخیره شود", color = Burgundy) } },
+                dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmCustomerSave = false }) { Text("انصراف") } }
+            )
+        }
+        return
+    }
+    if (confirmCustomerDelete) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { confirmCustomerDelete = false },
+            title = { Text("حذف مشتری") },
+            text = { Text("آیا مطمئن هستید؟ تمام سفارش‌های این مشتری نیز حذف می‌شود و این کار قابل برگشت نیست.") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                database.deleteCustomerOrders(customer.name, customer.phone)
+                confirmCustomerDelete = false
+                onBack()
+            }) { Text("بله، حذف شود", color = Color(0xFFB33A32)) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmCustomerDelete = false }) { Text("انصراف") } }
+        )
+    }
+    if (pendingMeasurements != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { pendingMeasurements = null },
+            title = { Text("تأیید ذخیره سایزها") },
+            text = { Text("تغییرات سایزهای این سفارش ذخیره شود؟") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                database.updateOrderMeasurements(selectedOrder!!.id, pendingMeasurements!!)
+                pendingMeasurements = null
+                refreshKey++
+                selectedOrder = null
+            }) { Text("ذخیره", color = Burgundy) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { pendingMeasurements = null }) { Text("انصراف") } }
+        )
+    }
+    if (statusOrder != null && pendingStatus != null) {
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { statusOrder = null; pendingStatus = null },
+            title = { Text("تغییر وضعیت سفارش") },
+            text = { Text("وضعیت سفارش #${statusOrder!!.id} به «${statusLabel(pendingStatus!!)}» تغییر کند؟") },
+            confirmButton = { androidx.compose.material3.TextButton(onClick = {
+                database.updateOrderStatus(statusOrder!!.id, pendingStatus!!)
+                statusOrder = null
+                pendingStatus = null
+                refreshKey++
+            }) { Text("تأیید تغییر", color = Burgundy) } },
+            dismissButton = { androidx.compose.material3.TextButton(onClick = { statusOrder = null; pendingStatus = null }) { Text("انصراف") } }
+        )
     }
     Column(Modifier.fillMaxSize().padding(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -1300,6 +1371,10 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             Text("مشخصات مشتری", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text("نام مشتری: ${customer.name}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Text("شماره تلفن: ${customer.phone.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                androidx.compose.material3.OutlinedButton(onClick = { pendingCustomerName = customer.name; pendingCustomerPhone = customer.phone; editCustomer = true }, modifier = Modifier.weight(1f)) { Text("ویرایش مشخصات", color = Burgundy, fontSize = 11.sp) }
+                androidx.compose.material3.OutlinedButton(onClick = { confirmCustomerDelete = true }, modifier = Modifier.weight(1f)) { Text("حذف مشتری", color = Color(0xFFB33A32), fontSize = 11.sp) }
+            }
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
                     Text("کل سفارشات", color = TextMuted, fontSize = 10.sp)
@@ -1338,6 +1413,14 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                             ) {
                                 Text(order.garmentModel.ifBlank { "مدل لباس نامشخص" }, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
                                 Text("سفارش #${order.id.toString().toPersianDigits()}", color = TextMuted, fontSize = 10.sp, modifier = Modifier.padding(top = 4.dp))
+                                Text("وضعیت: ${statusLabel(order.status)}", color = if (order.status == "ready") Color(0xFF237342) else Burgundy, fontSize = 10.sp, modifier = Modifier.padding(top = 3.dp))
+                                Row(Modifier.fillMaxWidth().padding(top = 5.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    listOf("incomplete" to "در حال انجام", "ready" to "آماده", "delivered" to "تحویل‌شده").forEach { (status, label) ->
+                                        androidx.compose.material3.TextButton(onClick = { statusOrder = order; pendingStatus = status }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 2.dp, vertical = 0.dp)) {
+                                            Text(label, fontSize = 8.sp, color = if (order.status == status) BurgundyDark else TextMuted)
+                                        }
+                                    }
+                                }
                                 androidx.compose.material3.HorizontalDivider(color = BorderSoft, modifier = Modifier.padding(vertical = 7.dp))
                                 if (measurementItems.isEmpty()) {
                                     Text("سایزی ثبت نشده", color = TextMuted, fontSize = 10.sp)
@@ -1353,6 +1436,33 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                     }
                 }
             }
+        }
+    }
+}
+
+private fun statusLabel(status: String): String = when (status) {
+    "ready" -> "آماده"
+    "delivered" -> "تحویل‌شده"
+    else -> "در حال انجام"
+}
+
+@Composable
+private fun CustomerDetailsEditor(
+    customer: CustomerSummary,
+    onBack: () -> Unit,
+    onSaveRequest: (String, String) -> Unit
+) {
+    var name by remember(customer.name) { mutableStateOf(customer.name) }
+    var phone by remember(customer.phone) { mutableStateOf(customer.phone) }
+    Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+            Text("ویرایش مشخصات مشتری", color = BurgundyDark, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        }
+        OutlinedTextField(value = name, onValueChange = { name = it }, modifier = Modifier.fillMaxWidth().padding(top = 16.dp), label = { Text("نام مشتری") }, singleLine = true, colors = appFieldColors())
+        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("شماره تلفن") }, singleLine = true, colors = appFieldColors())
+        Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
+            Text("ذخیره تغییرات", color = Color.White)
         }
     }
 }
