@@ -299,6 +299,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
     var showWorkerManagement by remember { mutableStateOf(false) }
+    var showWorkerAttendance by remember { mutableStateOf(false) }
     var showWorkflowSettings by remember { mutableStateOf(false) }
     var showProductionWorkflow by remember { mutableStateOf(false) }
     var showOrderForm by remember { mutableStateOf(false) }
@@ -322,6 +323,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
             when {
                 savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS; ordersView = "active" })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
+                showWorkerAttendance -> WorkerDailyAttendanceScreen(database = database, onBack = { showWorkerAttendance = false })
                 showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
                 showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
                 showProductionWorkflow -> ProductionWorkflowScreen(database = database, onBack = { showProductionWorkflow = false })
@@ -382,6 +384,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                             val settingsItems = listOf(
                                 Triple("تنظیمات کارگاه", "⚙", "workshop"),
                                 Triple("مدیریت کارمندان و معاش", "♙", "workers"),
+                                Triple("حاضری روزانه کارمندان", "✓", "attendance"),
                                 Triple("مراحل تولید سفارش", "⇢", "workflow"),
                                 Triple("پروفایل و معلومات کارگاه", "▣", "profile"),
                                 Triple("پشتیبان‌گیری و بازیابی", "⟳", "backup"),
@@ -405,6 +408,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                                             when (item.third) {
                                                 "workshop" -> showWorkshopSettings = true
                                                 "workers" -> showWorkerManagement = true
+                                                "attendance" -> showWorkerAttendance = true
                                                 "workflow" -> showWorkflowSettings = true
                                                 "backup" -> showBackupRestore = true
                                                 else -> selectedSettingsCategory = item.first
