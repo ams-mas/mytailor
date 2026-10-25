@@ -453,20 +453,35 @@ private fun FinanceScreen(database: LocalDatabase) {
     var period by remember { mutableStateOf("week") }
     var startDate by remember { mutableStateOf("") }
     var endDate by remember { mutableStateOf("") }
+    val paymentInputs = remember { mutableStateMapOf<String, String>() }
+    val paymentMessages = remember { mutableStateMapOf<String, String>() }
     val income = remember(revision, period, startDate, endDate) {
         database.getIncomeForPeriod(period, startDate, endDate)
     }
     val debtors = remember(revision) { database.getDebtCustomers() }
+    val totalDebt = remember(debtors) { debtors.sumOf { it.second } }
 
     Column(
         Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp)
     ) {
         Text("بخش مالی", color = BurgundyDark, fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("درآمد و قرض‌داران کارگاه", color = TextMuted, fontSize = 13.sp)
+        Text("درآمد واقعی دریافت‌شده و مدیریت قرض مشتریان", color = TextMuted, fontSize = 13.sp)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            Column(Modifier.weight(1f).background(BurgundySoft, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                Text("درآمد این بازه", color = BurgundyDark, fontSize = 12.sp)
+                Text(String.format(java.util.Locale.US, "%,.0f", income), color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("افغانی", color = TextMuted, fontSize = 11.sp)
+            }
+            Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                Text("مجموع قرض‌ها", color = TextMuted, fontSize = 12.sp)
+                Text(String.format(java.util.Locale.US, "%,.0f", totalDebt), color = TextDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+                Text("${debtors.size} مشتری", color = TextMuted, fontSize = 11.sp)
+            }
+        }
         Text("نمایش درآمد بر اساس", color = TextDark, fontWeight = FontWeight.SemiBold)
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("week" to "هفته", "month" to "ماه", "year" to "سال", "today" to "امروز", "custom" to "بازه").forEach { (key, label) ->
+            listOf("today" to "امروز", "week" to "هفته", "month" to "ماه", "year" to "سال", "custom" to "بازه").forEach { (key, label) ->
                 Column(
                     Modifier.weight(1f)
                         .background(if (period == key) Burgundy else Color.White, RoundedCornerShape(10.dp))
@@ -474,33 +489,61 @@ private fun FinanceScreen(database: LocalDatabase) {
                         .padding(vertical = 10.dp),
                     horizontalAlignment = Alignment.CenterHorizontally
                 ) {
-                    Text(label, color = if (period == key) Color.White else TextDark, fontSize = 12.sp)
+                    Text(label, color = if (period == key) Color.White else TextDark, fontSize = 11.sp)
                 }
             }
         }
         if (period == "custom") {
-            OutlinedTextField(value = startDate, onValueChange = { startDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true)
-            OutlinedTextField(value = endDate, onValueChange = { endDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true)
+            OutlinedTextField(value = startDate, onValueChange = { startDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(value = endDate, onValueChange = { endDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
             Text("تاریخ را به شکل 2026-10-24 وارد کنید.", color = TextMuted, fontSize = 12.sp)
         }
-        Column(Modifier.fillMaxWidth().background(BurgundySoft, RoundedCornerShape(16.dp)).padding(18.dp)) {
-            Text("درآمد دریافت‌شده", color = BurgundyDark, fontSize = 15.sp)
-            Text(String.format(java.util.Locale.US, "%,.0f افغانی", income), color = BurgundyDark, fontSize = 26.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 6.dp))
-            Text("شامل پیش‌پرداخت و پرداخت‌های ثبت‌شده در سفارشات", color = TextMuted, fontSize = 12.sp)
-        }
+        Text("مجموع پرداخت‌های ثبت‌شده در تاریخ انتخابی محاسبه می‌شود.", color = TextMuted, fontSize = 12.sp)
         Text("مشتریان قرض‌دار (${debtors.size})", color = BurgundyDark, fontSize = 19.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 8.dp))
         if (debtors.isEmpty()) {
             Text("در حال حاضر مشتری قرض‌دار وجود ندارد.", color = TextMuted)
         } else {
             debtors.forEach { (customer, debt) ->
-                Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                val customerKey = customer.name + "|" + customer.phone
+                Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                         Column(Modifier.weight(1f)) {
                             Text(customer.name, color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 15.sp)
                             Text(customer.phone, color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
                             Text("سفارش‌ها: ${customer.orderCount}", color = TextMuted, fontSize = 12.sp)
                         }
-                        Text(String.format(java.util.Locale.US, "%,.0f افغانی", debt), color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        Column(horizontalAlignment = Alignment.End) {
+                            Text("باقی‌داری", color = TextMuted, fontSize = 11.sp)
+                            Text(String.format(java.util.Locale.US, "%,.0f افغانی", debt), color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 15.sp)
+                        }
+                    }
+                    OutlinedTextField(
+                        value = paymentInputs[customerKey] ?: "",
+                        onValueChange = { paymentInputs[customerKey] = it; paymentMessages.remove(customerKey) },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true,
+                        label = { Text("مبلغ پرداختی (افغانی)") },
+                        colors = appFieldColors(),
+                        shape = RoundedCornerShape(14.dp)
+                    )
+                    Button(
+                        onClick = {
+                            val amount = paymentInputs[customerKey]?.trim()?.replace(",", "")?.toDoubleOrNull()
+                            when {
+                                amount == null || amount <= 0 -> paymentMessages[customerKey] = "مبلغ معتبر وارد کنید."
+                                amount > debt + 0.0001 -> paymentMessages[customerKey] = "مبلغ از قرض باقی‌مانده بیشتر است."
+                                database.recordCustomerPayment(customer.name, customer.phone, amount) -> {
+                                    paymentInputs.remove(customerKey)
+                                    paymentMessages[customerKey] = "پرداخت ثبت شد."
+                                }
+                                else -> paymentMessages[customerKey] = "پرداخت ثبت نشد؛ معلومات را بررسی کنید."
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                        colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
+                    ) { Text("ثبت پرداخت") }
+                    paymentMessages[customerKey]?.let { message ->
+                        Text(message, color = if (message == "پرداخت ثبت شد.") Color(0xFF247342) else Color(0xFFB3261E), fontSize = 12.sp)
                     }
                 }
             }
