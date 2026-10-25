@@ -353,10 +353,12 @@ internal class LocalDatabase(context: Context) :
         val startMillis = runCatching { dateFormat.parse(start)?.time }.getOrNull() ?: System.currentTimeMillis()
         val endMillis = runCatching { dateFormat.parse(end)?.time }.getOrNull() ?: startMillis
         val days = (java.util.concurrent.TimeUnit.MILLISECONDS.toDays(kotlin.math.abs(endMillis - startMillis)).toInt() + 1).coerceAtLeast(1)
-        val startCalendar = java.util.Calendar.getInstance().apply { timeInMillis = startMillis }
-        val endCalendar = java.util.Calendar.getInstance().apply { timeInMillis = endMillis }
-        val months = ((endCalendar.get(java.util.Calendar.YEAR) - startCalendar.get(java.util.Calendar.YEAR)) * 12 +
-            endCalendar.get(java.util.Calendar.MONTH) - startCalendar.get(java.util.Calendar.MONTH) + 1).coerceAtLeast(1)
+        val startJalali = isoDateToJalali(start).toEnglishDigits().split("/")
+        val endJalali = isoDateToJalali(end).toEnglishDigits().split("/")
+        val months = if (startJalali.size == 3 && endJalali.size == 3) {
+            (((endJalali[0].toInt() - startJalali[0].toInt()) * 12) +
+                endJalali[1].toInt() - startJalali[1].toInt() + 1).coerceAtLeast(1)
+        } else 1
         workers.forEach { worker ->
             val units: Int
             val earned: Double
