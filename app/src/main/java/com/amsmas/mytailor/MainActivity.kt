@@ -130,14 +130,13 @@ private fun LoginScreen(onLogin: (String, String) -> Unit, onRegister: () -> Uni
         }
     }
 
-    BoxWithConstraints(
+    val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+    Box(
         modifier = Modifier
             .fillMaxSize()
             .background(Color.Black)
             .windowInsetsPadding(WindowInsets.navigationBars)
     ) {
-        // Capture the available height in this scope to avoid the implicit receiver error.
-        val screenHeight = maxHeight
 
         AsyncImage(
             model = WORKSHOP_IMAGE_URL,
