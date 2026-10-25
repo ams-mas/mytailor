@@ -306,7 +306,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
         OutlinedTextField(attendanceDate, { attendanceDate = it; message = "" }, Modifier.fillMaxWidth(), label = { Text("تاریخ حاضری (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
         Button(onClick = onOpenReports, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark)) { Text("گزارش‌های حاضری") }
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حاضر: $@{presentCount} از $@{workers.size}", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("حاضر: ${presentCount} از ${workers.size}", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(if(workerType=="daily") "فقط کارمندانی نمایش داده می‌شوند که تاریخ انتخاب‌شده در مدت قراردادشان باشد." else "برای کارمندان ماهانه وضعیت هر روز ثبت می‌شود.", color = TextMuted, fontSize = 11.sp)
         }
         if(message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
@@ -318,7 +318,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
                         Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text("$@{payTypeLabel(worker.payType)} · $@{blueprintMoney(worker.payRate)} افغانی", color = TextMuted, fontSize = 11.sp)
+                        Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = TextMuted, fontSize = 11.sp)
                     }
                     Text(when(status) { "present" -> "حاضر"; "absent" -> "غایب"; "leave" -> "رخصتی"; else -> "ثبت نشده" },
                         color = when(status) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); else -> TextMuted }, fontWeight = FontWeight.SemiBold, fontSize = 12.sp)
@@ -327,7 +327,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
                     listOf("present" to "حاضر", "absent" to "غایب", "leave" to "رخصتی").forEach { (value,label) ->
                         Button(onClick = {
                             val ok = database.setWorkerAttendanceStatus(worker.id, attendanceDate, value)
-                            message = if(ok) "وضعیت $@{worker.name} ثبت شد." else "این تاریخ معتبر نیست یا خارج از قرارداد کارمند است."
+                            message = if(ok) "وضعیت ${worker.name} ثبت شد." else "این تاریخ معتبر نیست یا خارج از قرارداد کارمند است."
                         }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(
                             containerColor = if(status==value) Burgundy else BurgundySoft,
                             contentColor = if(status==value) Color.White else BurgundyDark
@@ -372,17 +372,17 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
         val totalPresent=rows.sumOf{it.present}
         val totalWage=rows.filter{it.payType=="daily"}.sumOf{it.wageTotal}
         Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(13.dp),verticalArrangement=Arrangement.spacedBy(4.dp)) {
-            Text("روزهای حضور ثبت‌شده: $@{totalPresent}",color=BurgundyDark,fontWeight=FontWeight.Bold)
-            Text("مجموع معاش محاسبه‌شده کارمندان روزانه: $@{blueprintMoney(totalWage)} افغانی",color=BurgundyDark,fontWeight=FontWeight.Bold,fontSize=13.sp)
+            Text("روزهای حضور ثبت‌شده: ${totalPresent}",color=BurgundyDark,fontWeight=FontWeight.Bold)
+            Text("مجموع معاش محاسبه‌شده کارمندان روزانه: ${blueprintMoney(totalWage)} افغانی",color=BurgundyDark,fontWeight=FontWeight.Bold,fontSize=13.sp)
         }
         if(rows.isEmpty()) Text("برای فیلترهای انتخاب‌شده گزارشی وجود ندارد.",color=TextMuted)
         rows.forEach { row ->
             Column(Modifier.fillMaxWidth().background(Color.White,RoundedCornerShape(14.dp)).padding(13.dp),verticalArrangement=Arrangement.spacedBy(5.dp)) {
                 Text(row.name,color=BurgundyDark,fontSize=15.sp,fontWeight=FontWeight.Bold)
-                Text("نوع: $@{payTypeLabel(row.payType)} · نرخ: $@{blueprintMoney(row.rate)} افغانی",color=TextMuted,fontSize=11.sp)
-                Text("حاضر: $@{row.present} · غایب: $@{row.absent} · رخصتی: $@{row.leave}",color=TextDark,fontSize=12.sp)
-                if(row.payType=="monthly") Text("روزهای حضور در بازه انتخاب‌شده: $@{row.present}",color=BurgundyDark,fontSize=12.sp)
-                else Text("معاش قابل پرداخت: $@{row.present} × $@{blueprintMoney(row.rate)} = $@{blueprintMoney(row.wageTotal)} افغانی",color=BurgundyDark,fontSize=13.sp,fontWeight=FontWeight.Bold)
+                Text("نوع: ${payTypeLabel(row.payType)} · نرخ: ${blueprintMoney(row.rate)} افغانی",color=TextMuted,fontSize=11.sp)
+                Text("حاضر: ${row.present} · غایب: ${row.absent} · رخصتی: ${row.leave}",color=TextDark,fontSize=12.sp)
+                if(row.payType=="monthly") Text("روزهای حضور در بازه انتخاب‌شده: ${row.present}",color=BurgundyDark,fontSize=12.sp)
+                else Text("معاش قابل پرداخت: ${row.present} × ${blueprintMoney(row.rate)} = ${blueprintMoney(row.wageTotal)} افغانی",color=BurgundyDark,fontSize=13.sp,fontWeight=FontWeight.Bold)
             }
         }
     }
