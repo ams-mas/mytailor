@@ -26,6 +26,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Checkbox
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -62,18 +63,18 @@ private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 // MyTailor unified theme: burgundy, warm ivory, and muted rose.
-private val Burgundy: Color = Color(0xFF702027)
-private val BurgundyDark: Color = Color(0xFF55191E)
-private val BurgundySoft = Color(0xFFF4E7E8)
+internal val Burgundy: Color = Color(0xFF702027)
+internal val BurgundyDark: Color = Color(0xFF55191E)
+internal val BurgundySoft = Color(0xFFF4E7E8)
 private val PageBg = Color.Transparent
-private val CardBg = Color(0xFFFFFFFF)
-private val BorderSoft = Color(0xFFD9C6C5)
-private val TextDark = Color(0xFF302627)
-private val TextMuted = Color(0xFF7D7070)
+internal val CardBg = Color(0xFFFFFFFF)
+internal val BorderSoft = Color(0xFFD9C6C5)
+internal val TextDark = Color(0xFF302627)
+internal val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
-internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
+internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double, val address: String = "")
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), FINANCE("مالی", "؋"), SETTINGS("تنظیمات", "⚙") }
 private const val APP_BACKGROUND_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/tailoring_wallpaper_4K.png"
@@ -290,12 +291,16 @@ private fun FabricScissorTransition(progress: Float) {
 
 @Composable
 private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
-    var selected by remember { mutableStateOf(MainTab.HOME) }
+    var selected by remember { mutableStateOf(MainTab.ORDERS) }
+    var ordersView by remember { mutableStateOf("active") }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
     var showGarmentModels by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
+    var showWorkerManagement by remember { mutableStateOf(false) }
+    var showWorkflowSettings by remember { mutableStateOf(false) }
+    var showProductionWorkflow by remember { mutableStateOf(false) }
     var showOrderForm by remember { mutableStateOf(false) }
     var savedOrderForReceipt by remember { mutableStateOf<TailorOrder?>(null) }
     var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
@@ -315,11 +320,30 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
         Column(Modifier.fillMaxSize().background(Color.Transparent).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS; ordersView = "active" })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
-                selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
-                selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database)
-                selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
+                showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
+                showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
+                showProductionWorkflow -> ProductionWorkflowScreen(database = database, onBack = { showProductionWorkflow = false })
+                selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.ORDERS; ordersView = "delivery" })
+                selected == MainTab.ORDERS -> Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.94f)).padding(horizontal = 5.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("dashboard" to "داشبورد", "active" to "سفارشات", "delivery" to "تحویل", "reports" to "گزارشات").forEach { (key, label) ->
+                            Column(Modifier.weight(1f).background(if (ordersView == key) Burgundy else BurgundySoft, RoundedCornerShape(9.dp)).clickable { ordersView = key }.padding(vertical = 9.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(label, color = if (ordersView == key) Color.White else BurgundyDark, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        when (ordersView) {
+                            "dashboard" -> DashboardContent(database = database, onOpenDeliveries = { ordersView = "delivery" })
+                            "delivery" -> DeliveryOrdersScreen(database = database, onAddOrder = { showOrderForm = true })
+                            "reports" -> ReportsScreen(database = database)
+                            else -> ActiveOrdersScreen(database = database, onOpenWorkflow = { showProductionWorkflow = true }, onAddOrder = { showOrderForm = true })
+                        }
+                    }
+                }
+                selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = { showOrderForm = true })
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
                 selected == MainTab.REPORTS -> ReportsScreen(database = database)
                 selected == MainTab.FINANCE -> FinanceScreen(database = database)
@@ -357,6 +381,8 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                             Text("مدیریت و تنظیم بخش‌های مختلف کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
                             val settingsItems = listOf(
                                 Triple("تنظیمات کارگاه", "⚙", "workshop"),
+                                Triple("مدیریت کارمندان و معاش", "♙", "workers"),
+                                Triple("مراحل تولید سفارش", "⇢", "workflow"),
                                 Triple("پروفایل و معلومات کارگاه", "▣", "profile"),
                                 Triple("پشتیبان‌گیری و بازیابی", "⟳", "backup"),
                                 Triple("ظاهر برنامه", "◐", "appearance"),
@@ -378,6 +404,8 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
                                         }, Modifier.weight(1f)) {
                                             when (item.third) {
                                                 "workshop" -> showWorkshopSettings = true
+                                                "workers" -> showWorkerManagement = true
+                                                "workflow" -> showWorkflowSettings = true
                                                 "backup" -> showBackupRestore = true
                                                 else -> selectedSettingsCategory = item.first
                                             }
@@ -407,7 +435,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
             }
         }
         Row(Modifier.fillMaxWidth().background(Color.White).windowInsetsPadding(WindowInsets.navigationBars).padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            MainTab.entries.forEach { tab ->
+            listOf(MainTab.ORDERS, MainTab.CUSTOMERS, MainTab.FINANCE, MainTab.SETTINGS).forEach { tab ->
                 Column(Modifier.weight(1f).clickable { selected = tab }.padding(vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(tab.symbol, color = if (selected == tab) BurgundyDark else Color.Gray, fontSize = 22.sp)
                     Text(tab.title, color = if (selected == tab) BurgundyDark else Color.Gray, fontSize = 10.sp, fontWeight = if (selected == tab) FontWeight.Bold else FontWeight.Normal)
@@ -423,7 +451,7 @@ private fun ReportsScreen(database: LocalDatabase) {
     val revision = database.revision.intValue
     val counts = remember(revision) { database.getOrderCounts() }
     val customers = remember(revision) { database.getCustomers() }
-    val tailors = remember(revision) { database.getTailors() }
+    val tailors = remember(revision) { database.getWorkers() }
     val skills = remember(revision) { database.getSkills() }
     val models = remember(revision) { database.getGarmentModels() }
     val financial = remember(revision) { database.getFinancialReport() }
@@ -449,6 +477,11 @@ private fun ReportsScreen(database: LocalDatabase) {
 
 @Composable
 private fun FinanceScreen(database: LocalDatabase) {
+    var showPayroll by remember { mutableStateOf(false) }
+    if (showPayroll) {
+        WorkerPayrollScreen(database = database, onBack = { showPayroll = false })
+        return
+    }
     val revision = database.revision.intValue
     var period by remember { mutableStateOf("month") }
     var startDate by remember { mutableStateOf("") }
@@ -458,6 +491,7 @@ private fun FinanceScreen(database: LocalDatabase) {
     val income = remember(revision, period, startDate, endDate) { database.getIncomeForPeriod(period, startDate, endDate) }
     val debtors = remember(revision) { database.getDebtCustomers() }
     val totalDebt = remember(debtors) { debtors.sumOf { it.second } }
+    val financial = remember(revision) { database.getFinancialReport() }
     val money: (Double) -> String = { amount -> String.format(java.util.Locale.US, "%,.0f", amount) }
 
     Column(
@@ -472,6 +506,10 @@ private fun FinanceScreen(database: LocalDatabase) {
                 Text("مدیریت مالی", color = BurgundyDark, fontSize = 25.sp, fontWeight = FontWeight.Bold)
                 Text("درآمد، پرداخت‌ها و قرض مشتریان", color = TextMuted, fontSize = 13.sp)
             }
+        }
+
+        Button(onClick = { showPayroll = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(12.dp)) {
+            Text("معاش و پرداخت کارمندان  ›", fontWeight = FontWeight.SemiBold)
         }
 
         Column(
@@ -499,6 +537,12 @@ private fun FinanceScreen(database: LocalDatabase) {
                 Text("${debtors.size}", color = BurgundyDark, fontSize = 23.sp, fontWeight = FontWeight.Bold)
                 Text("مشتری", color = BurgundyDark, fontSize = 11.sp)
             }
+        }
+
+        Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
+            Text("ارزش کل سفارش‌های ثبت‌شده", color = TextMuted, fontSize = 12.sp)
+            Text(money(financial.first), color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Text("افغانی · مجموع قیمت سفارش‌ها", color = TextMuted, fontSize = 11.sp)
         }
 
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(18.dp)).padding(14.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -962,6 +1006,9 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
 private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: (TailorOrder) -> Unit) {
     var customerName by remember { mutableStateOf("") }
     var phone by remember { mutableStateOf("") }
+    var address by remember { mutableStateOf("") }
+    var customerMenuExpanded by remember { mutableStateOf(false) }
+    val savedCustomers = remember(database.revision.intValue) { database.getCustomers() }
     var notes by remember { mutableStateOf("") }
     var deliveryDate by remember { mutableStateOf("") }
     var showDatePicker by remember { mutableStateOf(false) }
@@ -989,9 +1036,30 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
             }
         }
         Spacer(Modifier.height(14.dp))
+        Box(Modifier.fillMaxWidth()) {
+            Button(onClick = { customerMenuExpanded = true }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(12.dp)) {
+                Text(if (savedCustomers.isEmpty()) "انتخاب مشتری ثبت‌شده (فهرست خالی است)" else "انتخاب مشتری ثبت‌شده  ▾")
+            }
+            androidx.compose.material3.DropdownMenu(expanded = customerMenuExpanded, onDismissRequest = { customerMenuExpanded = false }) {
+                savedCustomers.forEach { savedCustomer ->
+                    androidx.compose.material3.DropdownMenuItem(
+                        text = { Text(savedCustomer.name + if (savedCustomer.phone.isBlank()) "" else " · " + savedCustomer.phone) },
+                        onClick = {
+                            customerName = savedCustomer.name
+                            phone = savedCustomer.phone
+                            address = savedCustomer.address
+                            customerMenuExpanded = false
+                            message = ""
+                        }
+                    )
+                }
+            }
+        }
         OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Spacer(Modifier.height(8.dp))
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth(), label = { Text("آدرس مشتری (اختیاری)") }, singleLine = true, colors = appFieldColors(), shape = fieldShape)
         Text("انتخاب مدل لباس", color = BurgundyDark, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
         Box {
             OutlinedTextField(
@@ -1017,7 +1085,10 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                         text = { Text(model.name, color = TextDark) },
                         onClick = {
                             selectedModelName = model.name
-                            measurements = model.measurements.associateWith { measurements[it] ?: "" }
+                            val savedMeasurements = database.getLatestCustomerMeasurements(customerName, phone, model.name)
+                            measurements = model.measurements.associateWith { field ->
+                                savedMeasurements[field] ?: measurements[field] ?: ""
+                            }
                             modelMenuExpanded = false
                             message = ""
                         }
@@ -1059,7 +1130,7 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                 total <= 0 -> message = "قیمت را وارد کنید."
                 payment < 0 || payment > total -> message = "مقدار پرداخت نباید از قیمت بیشتر باشد."
                 else -> {
-                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment)
+                    val order = TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, 0.0, payment, address.trim())
                     runCatching {
                         database.addOrder(order)
                     }.onSuccess { onSave(order) }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
@@ -1229,7 +1300,7 @@ private fun JalaliDatePickerDialog(
     }
 }
 
-private fun String.toEnglishDigits(): String = map { ch ->
+internal fun String.toEnglishDigits(): String = map { ch ->
     when (ch) {
         in '۰'..'۹' -> ('0'.code + (ch - '۰')).toChar()
         in '٠'..'٩' -> ('0'.code + (ch - '٠')).toChar()
@@ -1425,15 +1496,22 @@ private fun RecentOrder(name: String, work: String, date: String, status: String
 }
 
 @Composable
-private fun ActiveOrdersScreen(database: LocalDatabase) {
+private fun ActiveOrdersScreen(database: LocalDatabase, onOpenWorkflow: () -> Unit = {}, onAddOrder: () -> Unit = {}) {
     var search by remember { mutableStateOf("") }
     var refreshKey by remember { mutableIntStateOf(0) }
     var pendingOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
     val orders = remember(search, refreshKey, database.revision.intValue) { database.getActiveOrders(search) }
 
     Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
-        Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-        Text("سفارش‌هایی که هنوز تکمیل نشده‌اند", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp, bottom = 12.dp))
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Column(Modifier.weight(1f)) {
+                Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                Text("سفارش‌ها و مراحل تولید", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            }
+            TextButton(onClick = onOpenWorkflow) { Text("مراحل تولید", color = Burgundy, fontSize = 12.sp) }
+        }
+        Button(onClick = onAddOrder, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("+ ثبت سفارش جدید") }
+        Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = search,
             onValueChange = { search = it },
@@ -1492,13 +1570,39 @@ private fun CustomerListScreen(database: LocalDatabase) {
     var selectedCustomer by remember { mutableStateOf<CustomerSummary?>(null) }
     var activeOnly by remember { mutableStateOf(false) }
     var refreshKey by remember { mutableIntStateOf(0) }
+    var showAddCustomer by remember { mutableStateOf(false) }
+    var newCustomerName by remember { mutableStateOf("") }
+    var newCustomerPhone by remember { mutableStateOf("") }
+    var newCustomerAddress by remember { mutableStateOf("") }
+    var addCustomerMessage by remember { mutableStateOf("") }
     val customers = remember(search, refreshKey, database.revision.intValue) { database.getCustomers(search.toEnglishDigits()) }
+    if (showAddCustomer) {
+        Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+                Text("ثبت مشتری جدید", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+                TextButton(onClick = { showAddCustomer = false }) { Text("برگشت", color = Burgundy) }
+            }
+            OutlinedTextField(newCustomerName, { newCustomerName = it; addCustomerMessage = "" }, Modifier.fillMaxWidth(), label = { Text("نام مشتری *") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(newCustomerPhone, { newCustomerPhone = it }, Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            OutlinedTextField(newCustomerAddress, { newCustomerAddress = it }, Modifier.fillMaxWidth(), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(14.dp))
+            Button(onClick = {
+                if (database.saveCustomer(newCustomerName, newCustomerPhone, newCustomerAddress)) {
+                    showAddCustomer = false; search = newCustomerName; newCustomerName = ""; newCustomerPhone = ""; newCustomerAddress = ""; addCustomerMessage = ""
+                } else addCustomerMessage = "نام مشتری را وارد کنید."
+            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره مشتری") }
+            if (addCustomerMessage.isNotBlank()) Text(addCustomerMessage, color = BurgundyDark, fontSize = 12.sp)
+        }
+        return
+    }
     if (selectedCustomer != null) {
         CustomerOrderHistoryScreen(database, selectedCustomer!!, activeOnly) { selectedCustomer = null }
         return
     }
     Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 10.dp)) {
-        Text("لیست مشتریان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("لیست مشتریان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
+            Button(onClick = { showAddCustomer = true }, colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp)) { Text("+ مشتری", fontSize = 12.sp) }
+        }
         OutlinedTextField(value = search, onValueChange = { search = it }, modifier = Modifier.fillMaxWidth(), label = { Text("جستجو با نام یا شماره تلفن") }, singleLine = true, trailingIcon = {
             if (search.isNotEmpty()) androidx.compose.material3.TextButton(onClick = { search = "" }) { Text("پاک", color = Burgundy) }
             else Text("⌕", color = BurgundyDark, fontSize = 24.sp, modifier = Modifier.padding(horizontal = 12.dp))
@@ -1551,8 +1655,12 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
     var pendingStatus by remember { mutableStateOf<String?>(null) }
     var pendingCustomerName by remember { mutableStateOf(customer.name) }
     var pendingCustomerPhone by remember { mutableStateOf(customer.phone) }
+    var pendingCustomerAddress by remember { mutableStateOf(customer.address) }
     val orders = remember(customer.name, customer.phone, activeOnly, refreshKey, database.revision.intValue) {
         database.getCustomerOrders(customer.name, customer.phone, activeOnly)
+    }
+    val measurementHistory = remember(customer.name, customer.phone, database.revision.intValue) {
+        database.getCustomerMeasurementHistory(customer.name, customer.phone)
     }
     if (selectedOrder != null) {
         MeasurementEditorScreen(
@@ -1566,9 +1674,10 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
         CustomerDetailsEditor(
             customer = customer,
             onBack = { editCustomer = false },
-            onSaveRequest = { newName, newPhone ->
+            onSaveRequest = { newName, newPhone, newAddress ->
                 pendingCustomerName = newName
                 pendingCustomerPhone = newPhone
+                pendingCustomerAddress = newAddress
                 confirmCustomerSave = true
             }
         )
@@ -1578,7 +1687,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 title = { Text("تأیید تغییر مشخصات") },
                 text = { Text("آیا می‌خواهید مشخصات مشتری را در تمام سفارش‌های او تغییر دهید؟") },
                 confirmButton = { androidx.compose.material3.TextButton(onClick = {
-                    database.updateCustomerDetails(customer.name, customer.phone, pendingCustomerName, pendingCustomerPhone)
+                    database.updateCustomerDetails(customer.name, customer.phone, pendingCustomerName, pendingCustomerPhone, pendingCustomerAddress)
                     confirmCustomerSave = false
                     editCustomer = false
                     onBack()
@@ -1645,6 +1754,7 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             Text("مشخصات مشتری", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text("نام مشتری: ${customer.name}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Text("شماره تلفن: ${customer.phone.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            Text("آدرس: ${customer.address.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             if (customer.activeOrderCount > 0 || customer.remaining > 0) {
                 Text("تا زمانی که مشتری سفارش فعال یا بدهی داشته باشد، حذف مشتری غیرفعال است.", color = Color(0xFFB33A32), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
             }
@@ -1664,6 +1774,20 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
                     Text("باقی‌مانده", color = TextMuted, fontSize = 10.sp)
                     Text(formatReceiptAmount(customer.remaining), color = if (customer.remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        if (measurementHistory.isNotEmpty()) {
+            Column(Modifier.fillMaxWidth().padding(top = 8.dp).background(Color.White, RoundedCornerShape(12.dp)).padding(12.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("تاریخچه اندازه‌گیری", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+                measurementHistory.take(20).forEach { item ->
+                    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                        Column(Modifier.weight(1f)) {
+                            Text(item.fieldName + " · " + item.orderType, color = TextDark, fontSize = 12.sp)
+                            Text(item.recordedAt, color = TextMuted, fontSize = 10.sp)
+                        }
+                        Text(item.value, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
+                    }
                 }
             }
         }
@@ -1727,10 +1851,11 @@ private fun statusLabel(status: String): String = when (status) {
 private fun CustomerDetailsEditor(
     customer: CustomerSummary,
     onBack: () -> Unit,
-    onSaveRequest: (String, String) -> Unit
+    onSaveRequest: (String, String, String) -> Unit
 ) {
     var name by remember(customer.name) { mutableStateOf(customer.name) }
     var phone by remember(customer.phone) { mutableStateOf(customer.phone) }
+    var address by remember(customer.address) { mutableStateOf(customer.address) }
     Column(Modifier.fillMaxSize().background(PageBg).padding(16.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
             androidx.compose.material3.TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
@@ -1740,7 +1865,8 @@ private fun CustomerDetailsEditor(
                         shape = RoundedCornerShape(16.dp),)
         OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("شماره تلفن") }, singleLine = true, colors = appFieldColors(),
                         shape = RoundedCornerShape(16.dp),)
-        Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
+        OutlinedTextField(value = address, onValueChange = { address = it }, modifier = Modifier.fillMaxWidth().padding(top = 10.dp), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(16.dp))
+        Button(onClick = { if (name.isNotBlank()) onSaveRequest(name.trim(), phone.trim(), address.trim()) }, modifier = Modifier.fillMaxWidth().padding(top = 18.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) {
             Text("ذخیره تغییرات", color = Color.White)
         }
     }
@@ -1816,7 +1942,7 @@ private fun SimpleSection(title: String, description: String) {
 
 
 @Composable
-private fun appFieldColors() = OutlinedTextFieldDefaults.colors(
+internal fun appFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = Burgundy,
     unfocusedBorderColor = BorderSoft,
     focusedLabelColor = Burgundy,
