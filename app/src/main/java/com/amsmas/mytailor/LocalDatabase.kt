@@ -604,7 +604,23 @@ internal class LocalDatabase(context: Context) :
     }
 
     fun deleteCustomerOrders(name: String, phone: String) {
-        writableDatabase.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val orderIds = mutableListOf<Int>()
+            db.rawQuery("SELECT id FROM orders WHERE customer_name=? AND phone=?", arrayOf(name, phone)).use { c -> while (c.moveToNext()) orderIds.add(c.getInt(0)) }
+            orderIds.forEach { id ->
+                db.delete("order_payments", "order_id=?", arrayOf(id.toString()))
+                db.delete("order_step_assignments", "order_id=?", arrayOf(id.toString()))
+            }
+            db.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
+            val customerId = db.rawQuery("SELECT id FROM customers WHERE name=? AND phone=?", arrayOf(name, phone)).use { c -> if (c.moveToFirst()) c.getInt(0) else 0 }
+            if (customerId > 0) {
+                db.delete("customer_measurements", "customer_id=?", arrayOf(customerId.toString()))
+                db.delete("customers", "id=?", arrayOf(customerId.toString()))
+            }
+            db.setTransactionSuccessful()
+        } finally { db.endTransaction() }
         notifyChanged()
     }
 
