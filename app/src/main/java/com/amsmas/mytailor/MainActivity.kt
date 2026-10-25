@@ -1240,7 +1240,7 @@ private fun CustomerListScreen(database: LocalDatabase) {
         } else {
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 customers.forEachIndexed { index, customer ->
-                    Column(Modifier.fillMaxWidth().padding(bottom = 5.dp).background(Color.White, RoundedCornerShape(10.dp))) {
+                    Column(Modifier.fillMaxWidth(0.88f).align(Alignment.CenterHorizontally).padding(bottom = 5.dp).background(Color.White, RoundedCornerShape(10.dp))) {
                         Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp)).padding(horizontal = 8.dp, vertical = 5.dp), verticalAlignment = Alignment.CenterVertically) {
                             Text("شماره", Modifier.weight(0.55f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
                             Text("نام مشتری", Modifier.weight(1.45f), color = Color.White, fontSize = 10.sp, fontWeight = FontWeight.Bold)
