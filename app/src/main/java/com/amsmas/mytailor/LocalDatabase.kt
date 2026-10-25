@@ -197,7 +197,7 @@ internal class LocalDatabase(context: Context) :
         val args = if (term.isBlank()) null else arrayOf("%$term%", "%$term%")
         val sql = """
             SELECT customer_name, phone,
-                   SUM(CASE WHEN status != 'ready' THEN 1 ELSE 0 END) AS active_order_count,
+                   SUM(CASE WHEN status NOT IN ('ready', 'delivered') THEN 1 ELSE 0 END) AS active_order_count,
                    COUNT(*) AS order_count,
                    COALESCE(SUM(remaining), 0) AS total_remaining,
                    (SELECT o2.delivery_date FROM orders o2
@@ -225,7 +225,7 @@ internal class LocalDatabase(context: Context) :
 
     fun getCustomerOrders(name: String, phone: String, activeOnly: Boolean): List<CustomerOrderHistory> {
         val result = mutableListOf<CustomerOrderHistory>()
-        val statusFilter = if (activeOnly) " AND status != 'ready'" else ""
+        val statusFilter = if (activeOnly) " AND status NOT IN ('ready', 'delivered')" else ""
         val sql = "SELECT id, registered_at, delivery_date, garment_model, measurements_json, notes, price, deposit, paid, remaining, status FROM orders WHERE customer_name = ? AND phone = ?$statusFilter ORDER BY id DESC"
         readableDatabase.rawQuery(sql, arrayOf(name, phone)).use { cursor ->
             while (cursor.moveToNext()) {
@@ -267,7 +267,7 @@ internal class LocalDatabase(context: Context) :
             }
             return 0
         }
-        return Triple(count(), count("status = 'ready'"), count("status != 'ready'"))
+        return Triple(count(), count("status IN ('ready', 'delivered')"), count("status NOT IN ('ready', 'delivered')"))
     }
 
     fun createBackupJson(): String {
