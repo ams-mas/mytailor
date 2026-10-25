@@ -1543,7 +1543,7 @@ private fun CustomerListScreen(database: LocalDatabase) {
                 if (database.saveCustomer(newCustomerName, newCustomerPhone, newCustomerAddress)) {
                     showAddCustomer = false; search = newCustomerName; newCustomerName = ""; newCustomerPhone = ""; newCustomerAddress = ""; addCustomerMessage = ""
                 } else addCustomerMessage = "نام مشتری را وارد کنید."
-            }, Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره مشتری") }
+            }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره مشتری") }
             if (addCustomerMessage.isNotBlank()) Text(addCustomerMessage, color = BurgundyDark, fontSize = 12.sp)
         }
         return
