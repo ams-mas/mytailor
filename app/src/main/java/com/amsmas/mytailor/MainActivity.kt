@@ -289,10 +289,10 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { showOrderForm = false; selected = MainTab.ORDERS })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
                 selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
-                MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
-                MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
-                MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
-                MainTab.SETTINGS -> {
+                selected == MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
+                selected == MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
+                selected == MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
+                selected == MainTab.SETTINGS -> {
                     if (selectedSettingsCategory != null) {
                         SettingsCategoryScreen(
                             title = selectedSettingsCategory!!,
@@ -828,7 +828,7 @@ private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') (
 
 @Composable
 private fun DashboardContent(database: LocalDatabase, onOpenDeliveries: () -> Unit) {
-    val orderCounts = remember(database) { database.getOrderCounts() }
+    val orderCounts = database.getOrderCounts()
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Burgundy, BurgundyDark))).padding(16.dp),
