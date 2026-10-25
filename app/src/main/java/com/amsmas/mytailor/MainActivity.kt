@@ -62,14 +62,14 @@ private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
 )
 
 // MyTailor unified theme: burgundy, warm ivory, and muted rose.
-private val Burgundy: Color = Color(0xFF702027)
-private val BurgundyDark: Color = Color(0xFF55191E)
-private val BurgundySoft = Color(0xFFF4E7E8)
+internal val Burgundy: Color = Color(0xFF702027)
+internal val BurgundyDark: Color = Color(0xFF55191E)
+internal val BurgundySoft = Color(0xFFF4E7E8)
 private val PageBg = Color.Transparent
-private val CardBg = Color(0xFFFFFFFF)
-private val BorderSoft = Color(0xFFD9C6C5)
-private val TextDark = Color(0xFF302627)
-private val TextMuted = Color(0xFF7D7070)
+internal val CardBg = Color(0xFFFFFFFF)
+internal val BorderSoft = Color(0xFFD9C6C5)
+internal val TextDark = Color(0xFF302627)
+internal val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
@@ -1248,7 +1248,7 @@ private fun JalaliDatePickerDialog(
     }
 }
 
-private fun String.toEnglishDigits(): String = map { ch ->
+internal fun String.toEnglishDigits(): String = map { ch ->
     when (ch) {
         in '۰'..'۹' -> ('0'.code + (ch - '۰')).toChar()
         in '٠'..'٩' -> ('0'.code + (ch - '٠')).toChar()
@@ -1858,7 +1858,7 @@ private fun SimpleSection(title: String, description: String) {
 
 
 @Composable
-private fun appFieldColors() = OutlinedTextFieldDefaults.colors(
+internal fun appFieldColors() = OutlinedTextFieldDefaults.colors(
     focusedBorderColor = Burgundy,
     unfocusedBorderColor = BorderSoft,
     focusedLabelColor = Burgundy,
