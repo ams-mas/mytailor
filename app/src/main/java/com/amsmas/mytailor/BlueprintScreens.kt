@@ -286,7 +286,7 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
     var workerType by remember { mutableStateOf("monthly") }
     var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
-    val workers = remember(revision) { database.getWorkers().filter { it.payType == workerType } }
+    val workers = remember(revision, workerType) { database.getWorkers(includeInactive = true).filter { it.payType == workerType } }
     val statuses = remember(revision, attendanceDate) { database.getWorkerAttendanceStatusesForDate(attendanceDate) }
     val presentCount = workers.count { statuses[it.id] == "present" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
