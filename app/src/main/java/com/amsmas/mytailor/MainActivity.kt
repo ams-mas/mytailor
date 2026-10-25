@@ -1228,7 +1228,7 @@ private fun CustomerListScreen(database: LocalDatabase) {
             onValueChange = { search = it },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("جستجو با نام یا شماره تلفن") },
-            placeholder = { Text("مثلاً محمد یا شماره تماس") },
+            
             singleLine = true,
             trailingIcon = {
                 if (search.isNotEmpty()) {
