@@ -728,11 +728,6 @@ private fun WorkshopSettingsScreen(onBack: () -> Unit, onRegisterTailor: () -> U
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
         Text("تنظیمات کارگاه", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
         Text("مدیریت خیاطان، مهارت‌ها و مدل‌های لباس کارگاه", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 18.dp))
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            SettingsMenuItem("ثبت خیاط", "♙", Color(0xFFE7EEF9), Modifier.weight(1f), onRegisterTailor)
-            SettingsMenuItem("ثبت مهارت‌ها", "✂", Color(0xFFE7F3E8), Modifier.weight(1f), onRegisterSkills)
-        }
-        Spacer(Modifier.height(10.dp))
         SettingsMenuItem("مدل‌های لباس و اندازه‌گیری", "📏", Color(0xFFF6E7E8), Modifier.fillMaxWidth(), onGarmentModels)
         Spacer(Modifier.height(22.dp))
         Button(onClick = onBack, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE8E1DC), contentColor = TextDark)) { Text("برگشت به تنظیمات") }
