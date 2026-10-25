@@ -291,7 +291,8 @@ private fun FabricScissorTransition(progress: Float) {
 
 @Composable
 private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -> Unit, onRestore: () -> Unit, onLogout: () -> Unit, onAddOrder: () -> Unit) {
-    var selected by remember { mutableStateOf(MainTab.HOME) }
+    var selected by remember { mutableStateOf(MainTab.ORDERS) }
+    var ordersView by remember { mutableStateOf("active") }
     var showTailorForm by remember { mutableStateOf(false) }
     var showSkillsForm by remember { mutableStateOf(false) }
     var showGarmentModels by remember { mutableStateOf(false) }
@@ -319,14 +320,30 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
         Column(Modifier.fillMaxSize().background(Color.Transparent).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS; ordersView = "active" })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 showWorkerManagement -> WorkerManagementScreen(database = database, onBack = { showWorkerManagement = false })
                 showWorkflowSettings -> WorkflowSettingsScreen(database = database, onBack = { showWorkflowSettings = false })
                 showProductionWorkflow -> ProductionWorkflowScreen(database = database, onBack = { showProductionWorkflow = false })
-                selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
-                selected == MainTab.ORDERS -> ActiveOrdersScreen(database = database, onOpenWorkflow = { showProductionWorkflow = true })
-                selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = onAddOrder)
+                selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.ORDERS; ordersView = "delivery" })
+                selected == MainTab.ORDERS -> Column(Modifier.fillMaxSize()) {
+                    Row(Modifier.fillMaxWidth().background(Color.White.copy(alpha = 0.94f)).padding(horizontal = 5.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+                        listOf("dashboard" to "داشبورد", "active" to "سفارشات", "delivery" to "تحویل", "reports" to "گزارشات").forEach { (key, label) ->
+                            Column(Modifier.weight(1f).background(if (ordersView == key) Burgundy else BurgundySoft, RoundedCornerShape(9.dp)).clickable { ordersView = key }.padding(vertical = 9.dp, horizontal = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(label, color = if (ordersView == key) Color.White else BurgundyDark, fontSize = 10.sp, fontWeight = FontWeight.SemiBold)
+                            }
+                        }
+                    }
+                    Box(Modifier.weight(1f).fillMaxWidth()) {
+                        when (ordersView) {
+                            "dashboard" -> DashboardContent(database = database, onOpenDeliveries = { ordersView = "delivery" })
+                            "delivery" -> DeliveryOrdersScreen(database = database, onAddOrder = { showOrderForm = true })
+                            "reports" -> ReportsScreen(database = database)
+                            else -> ActiveOrdersScreen(database = database, onOpenWorkflow = { showProductionWorkflow = true }, onAddOrder = { showOrderForm = true })
+                        }
+                    }
+                }
+                selected == MainTab.DELIVERY -> DeliveryOrdersScreen(database = database, onAddOrder = { showOrderForm = true })
                 selected == MainTab.CUSTOMERS -> CustomerListScreen(database = database)
                 selected == MainTab.REPORTS -> ReportsScreen(database = database)
                 selected == MainTab.FINANCE -> FinanceScreen(database = database)
@@ -418,7 +435,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
             }
         }
         Row(Modifier.fillMaxWidth().background(Color.White).windowInsetsPadding(WindowInsets.navigationBars).padding(vertical = 7.dp), horizontalArrangement = Arrangement.SpaceEvenly) {
-            MainTab.entries.forEach { tab ->
+            listOf(MainTab.ORDERS, MainTab.CUSTOMERS, MainTab.FINANCE, MainTab.SETTINGS).forEach { tab ->
                 Column(Modifier.weight(1f).clickable { selected = tab }.padding(vertical = 2.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(tab.symbol, color = if (selected == tab) BurgundyDark else Color.Gray, fontSize = 22.sp)
                     Text(tab.title, color = if (selected == tab) BurgundyDark else Color.Gray, fontSize = 10.sp, fontWeight = if (selected == tab) FontWeight.Bold else FontWeight.Normal)
@@ -1479,7 +1496,7 @@ private fun RecentOrder(name: String, work: String, date: String, status: String
 }
 
 @Composable
-private fun ActiveOrdersScreen(database: LocalDatabase, onOpenWorkflow: () -> Unit = {}) {
+private fun ActiveOrdersScreen(database: LocalDatabase, onOpenWorkflow: () -> Unit = {}, onAddOrder: () -> Unit = {}) {
     var search by remember { mutableStateOf("") }
     var refreshKey by remember { mutableIntStateOf(0) }
     var pendingOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
@@ -1489,10 +1506,11 @@ private fun ActiveOrdersScreen(database: LocalDatabase, onOpenWorkflow: () -> Un
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("سفارشات فعال", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("سفارش‌هایی که هنوز تکمیل نشده‌اند", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+                Text("سفارش‌ها و مراحل تولید", color = TextMuted, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
             }
             TextButton(onClick = onOpenWorkflow) { Text("مراحل تولید", color = Burgundy, fontSize = 12.sp) }
         }
+        Button(onClick = onAddOrder, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("+ ثبت سفارش جدید") }
         Spacer(Modifier.height(10.dp))
         OutlinedTextField(
             value = search,
