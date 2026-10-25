@@ -575,9 +575,8 @@ private fun FinanceScreen(database: LocalDatabase) {
                 }
             }
             if (period == "custom") {
-                OutlinedTextField(value = startDate, onValueChange = { startDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(13.dp))
-                OutlinedTextField(value = endDate, onValueChange = { endDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(13.dp))
-                Text("نمونه تاریخ: 2026-10-24", color = TextMuted, fontSize = 11.sp)
+                JalaliDateInput(startDate, { startDate = it }, "از تاریخ")
+                JalaliDateInput(endDate, { endDate = it }, "تا تاریخ")
             }
         }
 
