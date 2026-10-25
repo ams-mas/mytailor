@@ -1280,9 +1280,29 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
                 Text(customer.name + " • " + customer.phone, color = TextMuted, fontSize = 11.sp)
             }
         }
-        if (orders.isEmpty()) Text("سفارشی برای نمایش وجود ندارد.", color = TextMuted, modifier = Modifier.padding(top = 20.dp))
+        Column(Modifier.fillMaxWidth().padding(top = 10.dp, bottom = 8.dp).background(BurgundySoft.copy(alpha = 0.6f), RoundedCornerShape(12.dp)).padding(12.dp)) {
+            Text("مشخصات مشتری", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            Text("نام مشتری: ${customer.name}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+            Text("شماره تلفن: ${customer.phone.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                    Text("کل سفارشات", color = TextMuted, fontSize = 10.sp)
+                    Text(customer.orderCount.toString().toPersianDigits(), color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                    Text("سفارش فعال", color = TextMuted, fontSize = 10.sp)
+                    Text(customer.activeOrderCount.toString().toPersianDigits(), color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
+                    Text("باقی‌مانده", color = TextMuted, fontSize = 10.sp)
+                    Text(formatReceiptAmount(customer.remaining), color = if (customer.remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                }
+            }
+        }
+        Text("مدل لباس‌های سفارش‌داده‌شده", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp, bottom = 2.dp))
+        if (orders.isEmpty()) Text("سفارشی برای نمایش وجود ندارد.", color = TextMuted, modifier = Modifier.padding(top = 10.dp))
         else {
-            Text("تعداد: ${orders.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(vertical = 8.dp))
+            Text("تعداد سفارش‌های نمایش‌داده‌شده: ${orders.size.toString().toPersianDigits()}", color = TextMuted, fontSize = 11.sp, modifier = Modifier.padding(vertical = 6.dp))
             Column(Modifier.weight(1f).verticalScroll(rememberScrollState())) {
                 Row(Modifier.fillMaxWidth().background(Burgundy, RoundedCornerShape(topStart = 8.dp, topEnd = 8.dp)).padding(vertical = 9.dp, horizontal = 4.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text("شماره", Modifier.weight(0.65f), color = Color.White, fontSize = 9.sp, fontWeight = FontWeight.Bold)
