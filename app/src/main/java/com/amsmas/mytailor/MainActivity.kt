@@ -1260,9 +1260,14 @@ internal fun JalaliDatePickerDialog(
     }
     val selectedDay = day.coerceIn(1, daysInMonth)
 
-    androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
+    androidx.compose.ui.window.Dialog(
+        onDismissRequest = onDismiss,
+        properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)
+    ) {
         Column(
-            Modifier.fillMaxWidth().background(PageBg, RoundedCornerShape(24.dp)).padding(18.dp),
+            Modifier.fillMaxWidth(0.92f)
+                .background(Color(0xFFFFFBF7), RoundedCornerShape(24.dp))
+                .padding(18.dp),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
             Text("انتخاب تاریخ هجری شمسی", color = BurgundyDark, fontSize = 19.sp, fontWeight = FontWeight.Bold)
@@ -1295,7 +1300,7 @@ internal fun JalaliDatePickerDialog(
                                 val isSelected = dateNumber == selectedDay
                                 Box(
                                     Modifier.fillMaxSize().padding(2.dp)
-                                        .background(if (isSelected) Burgundy else Color.Transparent, RoundedCornerShape(12.dp))
+                                        .background(if (isSelected) Burgundy else Color(0xFFF3EAE5), RoundedCornerShape(12.dp))
                                         .clickable { day = dateNumber },
                                     contentAlignment = Alignment.Center
                                 ) {
