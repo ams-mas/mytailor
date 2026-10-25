@@ -872,21 +872,17 @@ private fun JalaliDatePickerDialog(
 ) {
     val months = listOf("حمل", "ثور", "جوزا", "سرطان", "اسد", "سنبله", "میزان", "عقرب", "قوس", "جدی", "دلو", "حوت")
     val weekdays = listOf("ش", "ی", "د", "س", "چ", "پ", "ج")
-    val today = remember { android.icu.util.PersianCalendar() }
-    val initialParts = initialDate.split("/")
-    var year by remember { mutableIntStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: today.get(android.icu.util.Calendar.YEAR)) }
-    var month by remember { mutableIntStateOf((initialParts.getOrNull(1)?.toIntOrNull() ?: (today.get(android.icu.util.Calendar.MONTH) + 1)) - 1) }
-    var day by remember { mutableIntStateOf(initialParts.getOrNull(2)?.toIntOrNull() ?: today.get(android.icu.util.Calendar.DAY_OF_MONTH)) }
-    val calendar = remember(year, month) {
-        android.icu.util.PersianCalendar().apply {
-            clear()
-            set(android.icu.util.Calendar.YEAR, year)
-            set(android.icu.util.Calendar.MONTH, month)
-            set(android.icu.util.Calendar.DAY_OF_MONTH, 1)
-        }
+    val today = remember { gregorianToJalali(java.util.Calendar.getInstance()) }
+    val initialParts = initialDate.map { it.toEnglishDigits() }.split("/")
+    var year by remember { mutableIntStateOf(initialParts.getOrNull(0)?.toIntOrNull() ?: today.first) }
+    var month by remember { mutableIntStateOf((initialParts.getOrNull(1)?.toIntOrNull() ?: today.second) - 1) }
+    var day by remember { mutableIntStateOf(initialParts.getOrNull(2)?.toIntOrNull() ?: today.third) }
+    val daysInMonth = if (month < 6) 31 else if (month < 11) 30 else if (isJalaliLeapYear(year)) 30 else 29
+    val firstDayOffset = remember(year, month) {
+        val gregorian = jalaliToGregorian(year, month + 1, 1)
+        val cal = java.util.GregorianCalendar(gregorian.first, gregorian.second - 1, gregorian.third)
+        (cal.get(java.util.Calendar.DAY_OF_WEEK) + 1) % 7
     }
-    val daysInMonth = calendar.getActualMaximum(android.icu.util.Calendar.DAY_OF_MONTH)
-    val firstDayOffset = calendar.get(android.icu.util.Calendar.DAY_OF_WEEK) % 7
     val selectedDay = day.coerceIn(1, daysInMonth)
 
     androidx.compose.ui.window.Dialog(onDismissRequest = onDismiss) {
@@ -914,8 +910,7 @@ private fun JalaliDatePickerDialog(
                     }
                 }
             }
-            val cellCount = firstDayOffset + daysInMonth
-            val rows = (cellCount + 6) / 7
+            val rows = (firstDayOffset + daysInMonth + 6) / 7
             repeat(rows) { rowIndex ->
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(3.dp)) {
                     repeat(7) { columnIndex ->
@@ -943,6 +938,76 @@ private fun JalaliDatePickerDialog(
             }
         }
     }
+}
+
+private fun String.toEnglishDigits(): String = map { ch ->
+    when (ch) {
+        in '۰'..'۹' -> ('0'.code + (ch - '۰')).toChar()
+        in '٠'..'٩' -> ('0'.code + (ch - '٠')).toChar()
+        else -> ch
+    }
+}.joinToString("")
+
+private fun isJalaliLeapYear(year: Int): Boolean {
+    val current = jalaliToGregorian(year, 1, 1)
+    val next = jalaliToGregorian(year + 1, 1, 1)
+    return java.util.GregorianCalendar(next.first, next.second - 1, next.third).timeInMillis -
+        java.util.GregorianCalendar(current.first, current.second - 1, current.third).timeInMillis > 365L * 24 * 60 * 60 * 1000
+}
+
+private fun jalaliToGregorian(jyInput: Int, jm: Int, jd: Int): Triple<Int, Int, Int> {
+    var jy = jyInput + 1595
+    var days = -355668 + 365 * jy + (jy / 33) * 8 + ((jy % 33 + 3) / 4) + jd
+    days += if (jm < 7) (jm - 1) * 31 else (jm - 7) * 30 + 186
+    var gy = 400 * (days / 146097)
+    days %= 146097
+    if (days > 36524) {
+        gy += 100 * (--days / 36524)
+        days %= 36524
+        if (days >= 365) days++
+    }
+    gy += 4 * (days / 1461)
+    days %= 1461
+    if (days > 365) {
+        gy += (days - 1) / 365
+        days = (days - 1) % 365
+    }
+    var gd = days + 1
+    val leap = gy % 4 == 0 && (gy % 100 != 0 || gy % 400 == 0)
+    val gDays = intArrayOf(0, 31, if (leap) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    var gm = 1
+    while (gm <= 12 && gd > gDays[gm]) {
+        gd -= gDays[gm]
+        gm++
+    }
+    return Triple(gy, gm, gd)
+}
+
+private fun gregorianToJalali(calendar: java.util.Calendar): Triple<Int, Int, Int> {
+    val gy = calendar.get(java.util.Calendar.YEAR)
+    val gm = calendar.get(java.util.Calendar.MONTH) + 1
+    val gd = calendar.get(java.util.Calendar.DAY_OF_MONTH)
+    val gDaysInMonth = intArrayOf(0, 31, if (gy % 4 == 0 && (gy % 100 != 0 || gy % 400 == 0)) 29 else 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31)
+    var days = 355666 + 365 * gy + (gy + 3) / 4 - (gy + 99) / 100 + (gy + 399) / 400 + gd
+    for (i in 1 until gm) days += gDaysInMonth[i]
+    var jy = -1595 + 33 * (days / 12053)
+    days %= 12053
+    jy += 4 * (days / 1461)
+    days %= 1461
+    if (days > 365) {
+        jy += (days - 1) / 365
+        days = (days - 1) % 365
+    }
+    val jm: Int
+    val jd: Int
+    if (days < 186) {
+        jm = 1 + days / 31
+        jd = 1 + days % 31
+    } else {
+        jm = 7 + (days - 186) / 30
+        jd = 1 + (days - 186) % 30
+    }
+    return Triple(jy, jm, jd)
 }
 
 private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + (ch - '0')).toChar() else ch }.joinToString("")
