@@ -55,6 +55,7 @@ private val TextMuted = Color(0xFF7D7070)
 internal data class TailorRecord(val name: String, val phone: String, val address: String, val skills: List<String>)
 private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
+internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), SERVICES("خدمات", "✂"), SETTINGS("تنظیمات", "⚙") }
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
@@ -274,6 +275,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     var showGarmentModels by remember { mutableStateOf(false) }
     var showWorkshopSettings by remember { mutableStateOf(false) }
     var showBackupRestore by remember { mutableStateOf(false) }
+    var showOrderForm by remember { mutableStateOf(false) }
     var selectedSettingsCategory by remember { mutableStateOf<String?>(null) }
     var shopSkills by remember { mutableStateOf(listOf<ShopSkill>()) }
     var registeredTailors by remember { mutableStateOf(listOf<TailorRecord>()) }
@@ -283,9 +285,10 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     }
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            when (selected) {
-                MainTab.HOME -> DashboardContent(onOpenDeliveries = { selected = MainTab.DELIVERY })
-                MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
+            when {
+                showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { showOrderForm = false; selected = MainTab.ORDERS })
+                selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
+                selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
                 MainTab.DELIVERY -> DeliveryOrdersScreen(onAddOrder = onAddOrder)
                 MainTab.CUSTOMERS -> SimpleSection("مشتریان", "فهرست مشتریان و معلومات تماس")
                 MainTab.SERVICES -> SimpleSection("خدمات", "مدیریت خدمات و کارهای خیاطی")
@@ -364,9 +367,9 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
                     }
                 }
             }
-            if (selected == MainTab.HOME) {
+            if (selected == MainTab.HOME && !showOrderForm) {
                 Button(
-                    onClick = onAddOrder,
+                    onClick = { showOrderForm = true },
                     modifier = Modifier.align(Alignment.BottomEnd).padding(18.dp).size(56.dp),
                     shape = CircleShape, colors = ButtonDefaults.buttonColors(containerColor = Burgundy)
                 ) { Text("+", fontSize = 30.sp, color = Color.White) }
@@ -738,8 +741,94 @@ private fun RegisterTailorForm(availableSkills: List<String>, onBack: () -> Unit
     }
 }
 
+
 @Composable
-private fun DashboardContent(onOpenDeliveries: () -> Unit) {
+private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit, onSave: () -> Unit) {
+    var customerName by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var notes by remember { mutableStateOf("") }
+    var deliveryDate by remember { mutableStateOf("") }
+    var price by remember { mutableStateOf("") }
+    var deposit by remember { mutableStateOf("") }
+    var paid by remember { mutableStateOf("") }
+    var selectedModelName by remember { mutableStateOf("") }
+    var measurements by remember { mutableStateOf(mapOf<String, String>()) }
+    var message by remember { mutableStateOf("") }
+    val models = remember(database) { database.getGarmentModels() }
+    val selectedModel = models.firstOrNull { it.name == selectedModelName }
+    val total = price.toDoubleOrNull() ?: 0.0
+    val advance = deposit.toDoubleOrNull() ?: 0.0
+    val payment = paid.toDoubleOrNull() ?: 0.0
+    val remaining = (total - advance - payment).coerceAtLeast(0.0)
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Button(onClick = onBack, colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("بازگشت") }
+            Text("ثبت سفارش", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f), textAlign = TextAlign.Center)
+        }
+        Spacer(Modifier.height(14.dp))
+        OutlinedTextField(value = customerName, onValueChange = { customerName = it; message = "" }, modifier = Modifier.fillMaxWidth(), label = { Text("اسم مشتری") }, singleLine = true, colors = appFieldColors())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = phone, onValueChange = { phone = it }, modifier = Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors())
+        Text("انتخاب مدل لباس", color = BurgundyDark, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+        if (models.isEmpty()) {
+            Text("ابتدا در تنظیمات کارگاه، مدل لباس و اندازه‌های آن را ثبت کنید.", color = TextMuted, fontSize = 13.sp)
+        } else {
+            models.forEach { model ->
+                Row(Modifier.fillMaxWidth().padding(vertical = 3.dp).background(if (selectedModelName == model.name) BurgundySoft else Color.White, RoundedCornerShape(10.dp)).clickable {
+                    selectedModelName = model.name
+                    measurements = model.measurements.associateWith { measurements[it] ?: "" }
+                    message = ""
+                }.padding(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Checkbox(checked = selectedModelName == model.name, onCheckedChange = {
+                        selectedModelName = model.name
+                        measurements = model.measurements.associateWith { measurements[it] ?: "" }
+                        message = ""
+                    })
+                    Text(model.name, color = TextDark)
+                }
+            }
+        }
+        if (selectedModel != null) {
+            Text("اندازه‌های لباس", color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 12.dp, bottom = 6.dp))
+            selectedModel.measurements.forEach { measurement ->
+                OutlinedTextField(value = measurements[measurement] ?: "", onValueChange = { value -> measurements = measurements.toMutableMap().also { it[measurement] = value } }, modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp), label = { Text(measurement) }, singleLine = true, colors = appFieldColors())
+            }
+        }
+        OutlinedTextField(value = notes, onValueChange = { notes = it }, modifier = Modifier.fillMaxWidth(), label = { Text("توضیحات بیشتر") }, minLines = 3, colors = appFieldColors())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = deliveryDate, onValueChange = { deliveryDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تاریخ تحویل سفارش (مثلاً ۱۴۰۵/۰۸/۱۰)") }, singleLine = true, colors = appFieldColors())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = price, onValueChange = { price = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("قیمت (افغانی)") }, singleLine = true, colors = appFieldColors())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = deposit, onValueChange = { deposit = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("بیعانه (افغانی)") }, singleLine = true, colors = appFieldColors())
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(value = paid, onValueChange = { paid = it.filter { ch -> ch.isDigit() || ch == '.' } }, modifier = Modifier.fillMaxWidth(), label = { Text("پرداخت (افغانی)") }, singleLine = true, colors = appFieldColors())
+        Text("باقیمانده: ${remaining.toLong().toString().toPersianDigits()} افغانی", color = if (remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(vertical = 14.dp))
+        if (message.isNotBlank()) Text(message, color = Color(0xFFB33A32), fontSize = 13.sp)
+        Button(onClick = {
+            when {
+                customerName.isBlank() -> message = "اسم مشتری را وارد کنید."
+                selectedModel == null -> message = "مدل لباس را انتخاب کنید."
+                deliveryDate.isBlank() -> message = "تاریخ تحویل را وارد کنید."
+                total <= 0 -> message = "قیمت را وارد کنید."
+                advance < 0 || payment < 0 || advance + payment > total -> message = "بیعانه و پرداخت را بررسی کنید؛ مجموع آن‌ها نباید از قیمت بیشتر باشد."
+                else -> {
+                    runCatching {
+                        database.addOrder(TailorOrder(customerName.trim(), phone.trim(), selectedModel.name, measurements, notes.trim(), deliveryDate.trim(), total, advance, payment))
+                    }.onSuccess { onSave() }.onFailure { message = "ذخیره سفارش ناموفق بود: ${it.localizedMessage}" }
+                }
+            }
+        }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy)) { Text("ثبت سفارش", fontWeight = FontWeight.Bold) }
+        Spacer(Modifier.height(24.dp))
+    }
+}
+
+private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + (ch - '0')).toChar() else ch }.joinToString("")
+
+@Composable
+private fun DashboardContent(database: LocalDatabase, onOpenDeliveries: () -> Unit) {
+    val orderCounts = remember(database) { database.getOrderCounts() }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
         Row(
             Modifier.fillMaxWidth().background(Brush.verticalGradient(listOf(Burgundy, BurgundyDark))).padding(16.dp),
@@ -752,7 +841,7 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
         Column(Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 20.dp)) {
             OrderSummaryCard(
                 title = "تعداد کل سفارش‌ها",
-                count = "۰",
+                count = orderCounts.first.toString().toPersianDigits(),
                 subtitle = "",
                 background = Color(0xFFE8EEF9),
                 accent = Color(0xFF2856A6),
@@ -761,7 +850,7 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             OrderSummaryCard(
                 title = "تعداد سفارش‌های آماده",
-                count = "۰",
+                count = orderCounts.second.toString().toPersianDigits(),
                 subtitle = "",
                 background = Color(0xFFE4F4E8),
                 accent = Color(0xFF237342),
@@ -770,7 +859,7 @@ private fun DashboardContent(onOpenDeliveries: () -> Unit) {
             Spacer(Modifier.height(10.dp))
             OrderSummaryCard(
                 title = "تعداد سفارش‌های تکمیل‌نشده",
-                count = "۰",
+                count = orderCounts.third.toString().toPersianDigits(),
                 subtitle = "",
                 background = Color(0xFFFFE9E6),
                 accent = Color(0xFFB33A32),
