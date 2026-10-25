@@ -262,8 +262,8 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                     if (row.payType == "daily") {
                         Button(onClick = {
-                            database.recordWorkerAttendance(row.workerId, attendanceDate)
-                            message = "حاضری ${attendanceDate} برای ${row.name} ثبت شد."
+                            val saved = database.recordWorkerAttendance(row.workerId, attendanceDate)
+                            message = if (saved) "حاضری ${attendanceDate} برای ${row.name} ثبت شد." else "حاضری ثبت نشد؛ تاریخ را بررسی کنید یا این روز خارج از قرارداد کارمند است."
                         }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("ثبت حاضری امروز", fontSize = 11.sp) }
                     }
                     Button(onClick = {
@@ -351,7 +351,7 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
     val workers = remember(revision) { database.getWorkers().filter { it.payType=="monthly" || it.payType=="daily" } }
     val selectedWorker = workers.firstOrNull { it.name.contains(workerQuery.trim(), ignoreCase=true) || (workerQuery.toIntOrNull()!=null && it.id==workerQuery.toInt()) }
     val rows = remember(revision,startDate,endDate,workerType,selectedWorker?.id,workerQuery) {
-        if(validIsoDate(startDate) && validIsoDate(endDate) && startDate<=endDate)
+        if(validIsoDate(startDate) && validIsoDate(endDate) && startDate<=endDate && (workerQuery.isBlank() || selectedWorker != null))
             database.getWorkerAttendanceReport(startDate,endDate,workerType,if(workerQuery.isBlank()) null else selectedWorker?.id)
         else emptyList()
     }
