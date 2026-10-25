@@ -410,6 +410,13 @@ internal class LocalDatabase(context: Context) :
                 put("remaining", 0.0)
                 put("status", "delivered")
             }, "id = ? AND status = 'ready'", arrayOf(orderId.toString()))
+            if (paymentAmount > 0) {
+                db.insertOrThrow("order_payments", null, ContentValues().apply {
+                    put("order_id", orderId)
+                    put("amount", paymentAmount)
+                    put("note", "پرداخت هنگام تحویل سفارش")
+                })
+            }
             db.setTransactionSuccessful()
             notifyChanged()
             return true
