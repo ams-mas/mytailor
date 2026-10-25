@@ -25,92 +25,110 @@ import java.util.Locale
 private enum class DeliveryView { DAY, WEEK, CALENDAR }
 
 @Composable
-internal fun DeliveryOrdersScreen(onAddOrder: () -> Unit) {
-    var view by remember { mutableStateOf(DeliveryView.DAY) }
-    var selectedOffset by remember { mutableIntStateOf(0) }
-    val selectedCalendar = Calendar.getInstance().apply { add(Calendar.DAY_OF_YEAR, selectedOffset) }
-    val dateFormat = remember { SimpleDateFormat("yyyy/MM/dd", Locale("fa", "AF")) }
-    val weekdays = listOf("شنبه", "یکشنبه", "دوشنبه", "سه‌شنبه", "چهارشنبه", "پنجشنبه", "جمعه")
-    val today = Calendar.getInstance()
-    val weekStart = (today.clone() as Calendar).apply {
-        val day = get(Calendar.DAY_OF_WEEK)
-        val daysFromSaturday = day % 7
-        add(Calendar.DAY_OF_YEAR, -daysFromSaturday)
+internal fun DeliveryOrdersScreen(database: LocalDatabase, onAddOrder: () -> Unit) {
+    var search by remember { mutableStateOf("") }
+    var refreshKey by remember { mutableIntStateOf(0) }
+    var selectedOrder by remember { mutableStateOf<DeliveryOrder?>(null) }
+    var paymentAmount by remember { mutableStateOf("") }
+    var message by remember { mutableStateOf("") }
+    val orders = remember(search, refreshKey) { database.getReadyForDeliveryOrders(search) }
+
+    Column(Modifier.fillMaxSize().background(Color(0xFFFAF7F4)).padding(16.dp)) {
+        Text("تحویل سفارش‌ها", color = Color(0xFF55191E), fontSize = 24.sp, fontWeight = FontWeight.Bold)
+        Text("سفارش‌های تکمیل‌شده و آماده تحویل", color = Color(0xFF7D7070), fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 12.dp))
+        androidx.compose.material3.OutlinedTextField(
+            value = search,
+            onValueChange = { search = it },
+            modifier = Modifier.fillMaxWidth(),
+            singleLine = true,
+            label = { Text("جستجو با نام یا شماره تماس مشتری") },
+            colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
+                focusedBorderColor = Color(0xFF702027),
+                unfocusedBorderColor = Color(0xFFD9C6C5),
+                focusedLabelColor = Color(0xFF702027),
+                cursorColor = Color(0xFF702027)
+            ),
+            shape = RoundedCornerShape(16.dp)
+        )
+        Spacer(Modifier.height(12.dp))
+        if (orders.isEmpty()) {
+            Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Text(if (search.isBlank()) "سفارش آماده تحویل وجود ندارد." else "مشتری یا سفارش پیدا نشد.", color = Color(0xFF302627), fontWeight = FontWeight.SemiBold, textAlign = TextAlign.Center)
+                Text("ابتدا وضعیت سفارش را در بخش مشتریان «آماده» کنید.", color = Color(0xFF7D7070), fontSize = 12.sp, textAlign = TextAlign.Center, modifier = Modifier.padding(top = 6.dp))
+            }
+        } else {
+            Column(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState())) {
+                orders.forEach { order ->
+                    Column(Modifier.fillMaxWidth().padding(bottom = 10.dp).background(Color.White, RoundedCornerShape(14.dp)).padding(14.dp)) {
+                        Text(order.customerName, color = Color(0xFF55191E), fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        Text("تماس: ${order.phone}", color = Color(0xFF7D7070), fontSize = 12.sp, modifier = Modifier.padding(top = 3.dp))
+                        Text("مدل لباس: ${order.garmentModel}", color = Color(0xFF302627), fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
+                        Text("قیمت: ${order.price.toLong()} • پرداخت‌شده: ${order.paid.toLong()}", color = Color(0xFF302627), fontSize = 12.sp, modifier = Modifier.padding(top = 4.dp))
+                        Text("باقی‌مانده: ${order.remaining.toLong()}", color = if (order.remaining > 0) Color(0xFFB3261E) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 4.dp))
+                        Button(
+                            onClick = {
+                                if (order.remaining <= 0.0001) {
+                                    val delivered = database.collectRemainingAndDeliver(order.id, 0.0)
+                                    if (delivered) { message = "سفارش تحویل شد."; refreshKey++ } else message = "وضعیت سفارش تغییر کرده است؛ فهرست را بررسی کنید."
+                                } else {
+                                    selectedOrder = order
+                                    paymentAmount = order.remaining.toLong().toString()
+                                    message = ""
+                                }
+                            },
+                            modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF702027)),
+                            shape = RoundedCornerShape(12.dp)
+                        ) { Text(if (order.remaining > 0.0001) "دریافت باقی‌مانده و تحویل" else "تحویل سفارش") }
+                    }
+                }
+            }
+        }
+        if (message.isNotBlank()) Text(message, color = Color(0xFF237342), fontSize = 12.sp, modifier = Modifier.padding(vertical = 6.dp))
     }
 
-    Column(Modifier.fillMaxSize().background(Color(0xFFFAF7F4)).verticalScroll(rememberScrollState()).padding(16.dp)) {
-        Text("تحویل سفارش‌ها", color = Color(0xFF55191E), fontSize = 24.sp, fontWeight = FontWeight.Bold)
-        Text("برنامه‌ریزی تحویل لباس‌ها بر اساس روز و تاریخ", color = Color(0xFF7D7070), fontSize = 13.sp, modifier = Modifier.padding(top = 5.dp, bottom = 16.dp))
-
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            DeliverySummaryCard("امروز", "۰", Color(0xFF702027), Modifier.weight(1f))
-            DeliverySummaryCard("فردا", "۰", Color(0xFFB7791F), Modifier.weight(1f))
-        }
-        Spacer(Modifier.height(8.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            DeliverySummaryCard("این هفته", "۰", Color(0xFF2870D8), Modifier.weight(1f))
-            DeliverySummaryCard("عقب‌افتاده", "۰", Color(0xFFD34A4A), Modifier.weight(1f))
-        }
-
-        Spacer(Modifier.height(20.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            DeliveryView.entries.forEach { option ->
-                val label = when (option) {
-                    DeliveryView.DAY -> "روزانه"
-                    DeliveryView.WEEK -> "هفتگی"
-                    DeliveryView.CALENDAR -> "انتخاب تاریخ"
+    if (selectedOrder != null) {
+        val order = selectedOrder!!
+        androidx.compose.material3.AlertDialog(
+            onDismissRequest = { selectedOrder = null },
+            title = { Text("دریافت باقی‌مانده پول") },
+            text = {
+                Column {
+                    Text("مشتری: ${order.customerName}")
+                    Text("باقی‌مانده قابل پرداخت: ${order.remaining.toLong()}")
+                    androidx.compose.material3.OutlinedTextField(
+                        value = paymentAmount,
+                        onValueChange = { paymentAmount = it.filter(Char::isDigit) },
+                        modifier = Modifier.fillMaxWidth().padding(top = 10.dp),
+                        singleLine = true,
+                        label = { Text("مبلغ دریافتی") },
+                        shape = RoundedCornerShape(16.dp)
+                    )
+                    Text("برای تحویل، تمام باقی‌مانده باید پرداخت شود.", color = Color(0xFFB3261E), fontSize = 12.sp, modifier = Modifier.padding(top = 6.dp))
                 }
-                if (view == option) {
-                    Button(onClick = { view = option }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp), colors = ButtonDefaults.buttonColors(containerColor = Color(0xFF702027))) { Text(label, fontSize = 12.sp) }
-                } else {
-                    OutlinedButton(onClick = { view = option }, modifier = Modifier.weight(1f), contentPadding = PaddingValues(horizontal = 4.dp, vertical = 8.dp)) { Text(label, fontSize = 12.sp, color = Color(0xFF702027)) }
-                }
-            }
-        }
-
-        Spacer(Modifier.height(14.dp))
-        when (view) {
-            DeliveryView.DAY -> {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                    Text(dateFormat.format(selectedCalendar.time), color = Color(0xFF302627), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        OutlinedButton(onClick = { selectedOffset-- }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text("روز قبل") }
-                        OutlinedButton(onClick = { selectedOffset++ }, contentPadding = PaddingValues(horizontal = 12.dp, vertical = 4.dp)) { Text("روز بعد") }
-                    }
-                }
-                Spacer(Modifier.height(12.dp))
-                DeliveryEmptyState(onAddOrder)
-            }
-            DeliveryView.WEEK -> {
-                Text("برنامه این هفته", color = Color(0xFF302627), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(8.dp))
-                repeat(7) { index ->
-                    val day = (weekStart.clone() as Calendar).apply { add(Calendar.DAY_OF_YEAR, index) }
-                    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp).background(Color.White, RoundedCornerShape(12.dp)).clickable { selectedOffset = ((day.timeInMillis - today.timeInMillis) / 86400000L).toInt(); view = DeliveryView.DAY }.padding(12.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Column(Modifier.weight(1f)) {
-                            Text(weekdays[index], color = Color(0xFF302627), fontWeight = FontWeight.SemiBold)
-                            Text(dateFormat.format(day.time), color = Color(0xFF7D7070), fontSize = 12.sp)
+            },
+            confirmButton = {
+                androidx.compose.material3.TextButton(onClick = {
+                    val entered = paymentAmount.toDoubleOrNull()
+                    if (entered == null || entered < order.remaining) {
+                        message = "مبلغ باید برابر یا بیشتر از باقی‌مانده باشد."
+                    } else {
+                        val success = database.collectRemainingAndDeliver(order.id, order.remaining)
+                        if (success) {
+                            message = "پول دریافت شد و سفارش تحویل گردید."
+                            refreshKey++
+                            selectedOrder = null
+                        } else {
+                            message = "ثبت پرداخت ناموفق بود؛ وضعیت سفارش را بررسی کنید."
+                            selectedOrder = null
                         }
-                        Text("۰ سفارش", color = Color(0xFF702027), fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     }
-                }
-                Text("با انتخاب هر روز، فهرست سفارش‌های موعددار همان روز باز می‌شود.", color = Color(0xFF7D7070), fontSize = 12.sp, modifier = Modifier.padding(top = 8.dp))
+                }) { Text("ثبت دریافت و تحویل", color = Color(0xFF702027)) }
+            },
+            dismissButton = {
+                androidx.compose.material3.TextButton(onClick = { selectedOrder = null }) { Text("انصراف") }
             }
-            DeliveryView.CALENDAR -> {
-                Text("انتخاب تاریخ", color = Color(0xFF302627), fontWeight = FontWeight.Bold, fontSize = 16.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    OutlinedButton(onClick = { selectedOffset -= 7 }, modifier = Modifier.weight(1f)) { Text("هفته قبل") }
-                    Text(dateFormat.format(selectedCalendar.time), modifier = Modifier.weight(1.5f), textAlign = TextAlign.Center, fontSize = 13.sp)
-                    OutlinedButton(onClick = { selectedOffset += 7 }, modifier = Modifier.weight(1f)) { Text("هفته بعد") }
-                }
-                Spacer(Modifier.height(12.dp))
-                DeliveryEmptyState(onAddOrder)
-            }
-        }
-        Spacer(Modifier.height(18.dp))
-        Text("نکته: تعدادها پس از ثبت سفارش و تعیین تاریخ تحویل، به‌صورت خودکار محاسبه می‌شوند.", color = Color(0xFF7D7070), fontSize = 12.sp)
-        Spacer(Modifier.height(18.dp))
+        )
     }
 }
 
