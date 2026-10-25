@@ -12,6 +12,7 @@ import org.json.JSONObject
  * Backup/export and restore/import can be added later without changing the app's data model.
  */
 internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
+internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -28,6 +29,7 @@ internal class LocalDatabase(context: Context) :
             db.execSQL("CREATE TABLE IF NOT EXISTS garment_models (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT NOT NULL UNIQUE COLLATE NOCASE, measurements_json TEXT NOT NULL)")
         }
         if (oldVersion < 3) createOrdersTable(db)
+        if (oldVersion < 4) db.execSQL("ALTER TABLE orders ADD COLUMN registered_at TEXT NOT NULL DEFAULT ''")
     }
 
     fun getSkills(): List<String> {
@@ -109,7 +111,7 @@ internal class LocalDatabase(context: Context) :
 
 
     private fun createOrdersTable(db: SQLiteDatabase) {
-        db.execSQL("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT NOT NULL, phone TEXT NOT NULL, garment_model TEXT NOT NULL, measurements_json TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', delivery_date TEXT NOT NULL, price REAL NOT NULL, deposit REAL NOT NULL, paid REAL NOT NULL, remaining REAL NOT NULL, status TEXT NOT NULL DEFAULT 'incomplete')")
+        db.execSQL("CREATE TABLE IF NOT EXISTS orders (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_name TEXT NOT NULL, phone TEXT NOT NULL, garment_model TEXT NOT NULL, measurements_json TEXT NOT NULL, notes TEXT NOT NULL DEFAULT '', delivery_date TEXT NOT NULL, registered_at TEXT NOT NULL DEFAULT CURRENT_TIMESTAMP, price REAL NOT NULL, deposit REAL NOT NULL, paid REAL NOT NULL, remaining REAL NOT NULL, status TEXT NOT NULL DEFAULT 'incomplete')")
     }
 
     fun addOrder(order: TailorOrder) {
@@ -156,6 +158,18 @@ internal class LocalDatabase(context: Context) :
                     remaining = cursor.getDouble(4),
                     lastDeliveryDate = cursor.getString(5) ?: ""
                 ))
+            }
+        }
+        return result
+    }
+
+    fun getCustomerOrders(name: String, phone: String, activeOnly: Boolean): List<CustomerOrderHistory> {
+        val result = mutableListOf<CustomerOrderHistory>()
+        val statusFilter = if (activeOnly) " AND status != 'ready'" else ""
+        val sql = "SELECT id, registered_at, delivery_date, garment_model, price, deposit, paid, remaining, status FROM orders WHERE customer_name = ? AND phone = ?$statusFilter ORDER BY id DESC"
+        readableDatabase.rawQuery(sql, arrayOf(name, phone)).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(CustomerOrderHistory(cursor.getInt(0), cursor.getString(1) ?: "", cursor.getString(2) ?: "", cursor.getString(3) ?: "", cursor.getDouble(4), cursor.getDouble(5), cursor.getDouble(6), cursor.getDouble(7), cursor.getString(8) ?: ""))
             }
         }
         return result
@@ -253,6 +267,6 @@ internal class LocalDatabase(context: Context) :
 
     companion object {
         private const val DATABASE_NAME = "mytailor_local.db"
-        private const val DATABASE_VERSION = 3
+        private const val DATABASE_VERSION = 4
     }
 }
