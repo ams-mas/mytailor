@@ -1241,7 +1241,7 @@ private fun printOrderReceipt(context: Context, order: TailorOrder) {
 }
 
 @Composable
-private fun JalaliDatePickerDialog(
+internal fun JalaliDatePickerDialog(
     initialDate: String,
     onDismiss: () -> Unit,
     onDateSelected: (String) -> Unit
@@ -1331,7 +1331,7 @@ private fun isJalaliLeapYear(year: Int): Boolean {
         java.util.GregorianCalendar(current.first, current.second - 1, current.third).timeInMillis > 365L * 24 * 60 * 60 * 1000
 }
 
-private fun jalaliToGregorian(jyInput: Int, jm: Int, jd: Int): Triple<Int, Int, Int> {
+internal fun jalaliToGregorian(jyInput: Int, jm: Int, jd: Int): Triple<Int, Int, Int> {
     var jy = jyInput + 1595
     var days = -355668 + 365 * jy + (jy / 33) * 8 + ((jy % 33 + 3) / 4) + jd
     days += if (jm < 7) (jm - 1) * 31 else (jm - 7) * 30 + 186
@@ -1359,7 +1359,7 @@ private fun jalaliToGregorian(jyInput: Int, jm: Int, jd: Int): Triple<Int, Int, 
     return Triple(gy, gm, gd)
 }
 
-private fun gregorianToJalali(calendar: java.util.Calendar): Triple<Int, Int, Int> {
+internal fun gregorianToJalali(calendar: java.util.Calendar): Triple<Int, Int, Int> {
     val gy = calendar.get(java.util.Calendar.YEAR)
     val gm = calendar.get(java.util.Calendar.MONTH) + 1
     val gd = calendar.get(java.util.Calendar.DAY_OF_MONTH)
@@ -1384,6 +1384,28 @@ private fun gregorianToJalali(calendar: java.util.Calendar): Triple<Int, Int, In
         jd = 1 + (days - 186) % 30
     }
     return Triple(jy, jm, jd)
+}
+
+
+internal fun isoDateToJalali(iso: String): String {
+    val parts = iso.toEnglishDigits().split("-")
+    if (parts.size != 3) return iso
+    val gy = parts[0].toIntOrNull() ?: return iso
+    val gm = parts[1].toIntOrNull() ?: return iso
+    val gd = parts[2].toIntOrNull() ?: return iso
+    val cal = java.util.GregorianCalendar(gy, gm - 1, gd)
+    val j = gregorianToJalali(cal)
+    return "${j.first}/${j.second.toString().padStart(2,'0')}/${j.third.toString().padStart(2,'0')}".toPersianDigits()
+}
+
+internal fun jalaliDateToIso(jalali: String): String {
+    val parts = jalali.toEnglishDigits().split("/", "-")
+    if (parts.size != 3) return jalali
+    val jy = parts[0].toIntOrNull() ?: return jalali
+    val jm = parts[1].toIntOrNull() ?: return jalali
+    val jd = parts[2].toIntOrNull() ?: return jalali
+    val g = jalaliToGregorian(jy, jm, jd)
+    return "${g.first}-${g.second.toString().padStart(2,'0')}-${g.third.toString().padStart(2,'0')}"
 }
 
 private fun String.toPersianDigits(): String = map { ch -> if (ch in '0'..'9') ('۰'.code + (ch - '0')).toChar() else ch }.joinToString("")
