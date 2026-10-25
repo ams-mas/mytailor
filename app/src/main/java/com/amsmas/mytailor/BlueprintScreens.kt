@@ -531,7 +531,7 @@ internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
     var appliedSearch by remember { mutableStateOf("") }
     var editingWorker by remember { mutableStateOf<WorkerRecord?>(null) }
     val revision = database.revision.intValue
-    val workers = remember(revision, filter, appliedSearch) {
+    val workers = remember(revision, filter, appliedSearch, sortBy) {
         database.getWorkers(includeInactive = true)
             .filter { when (filter) { "active" -> it.active; "inactive" -> !it.active; "monthly" -> it.active && it.payType == "monthly"; "daily" -> it.active && it.payType == "daily"; else -> it.active } }
             .filter { appliedSearch.isBlank() || it.name.contains(appliedSearch, ignoreCase = true) || it.phone.contains(appliedSearch, ignoreCase = true) }
