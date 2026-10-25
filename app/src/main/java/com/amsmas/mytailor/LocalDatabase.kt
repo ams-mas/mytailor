@@ -228,6 +228,21 @@ internal class LocalDatabase(context: Context) :
         notifyChanged()
     }
 
+    fun getLatestCustomerMeasurements(customerName: String, phone: String, orderType: String): Map<String, String> {
+        val result = linkedMapOf<String, String>()
+        readableDatabase.rawQuery("""
+            SELECT f.field_name,m.value FROM customer_measurements m
+            JOIN customers c ON c.id=m.customer_id
+            JOIN order_types t ON t.id=m.order_type_id
+            JOIN measurement_fields f ON f.id=m.field_id
+            WHERE c.name=? AND c.phone=? AND t.type_name=?
+            ORDER BY m.recorded_at DESC,m.id DESC
+        """.trimIndent(), arrayOf(customerName.trim(), phone.trim(), orderType.trim())).use { c ->
+            while (c.moveToNext()) if (!result.containsKey(c.getString(0))) result[c.getString(0)] = c.getString(1)
+        }
+        return result
+    }
+
     fun getCustomerMeasurementHistory(customerName: String, phone: String): List<CustomerMeasurementRecord> {
         val rows = mutableListOf<CustomerMeasurementRecord>()
         readableDatabase.rawQuery("""
