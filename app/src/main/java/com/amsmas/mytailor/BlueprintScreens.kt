@@ -317,63 +317,122 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
 internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> Unit, onOpenReports: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
     var attendanceDate by remember { mutableStateOf(today) }
-    var workerType by remember { mutableStateOf("all") }
+    var workerType by remember { mutableStateOf("daily") }
     var message by remember { mutableStateOf("") }
+    var pendingStatuses by remember { mutableStateOf<Map<Int, String>>(emptyMap()) }
+    var isSaved by remember { mutableStateOf(false) }
     val revision = database.revision.intValue
-    val allWorkers = remember(revision) { database.getWorkers(includeInactive = true).filter { it.payType == "monthly" || it.payType == "daily" } }
-    val workers = remember(allWorkers, workerType) {
+    val allWorkers = remember(revision) {
+        database.getWorkers().filter { it.payType == "monthly" || it.payType == "daily" }
+    }
+    val workersByType = remember(allWorkers, workerType) {
         when (workerType) {
             "monthly" -> allWorkers.filter { it.payType == "monthly" }
             "daily" -> allWorkers.filter { it.payType == "daily" }
             else -> allWorkers
         }
     }
-    val statuses = remember(revision, attendanceDate) { database.getWorkerAttendanceStatusesForDate(attendanceDate) }
-    val eligibleWorkers = workers.filter { worker ->
-        worker.payType != "daily" || (attendanceDate >= worker.startDate && (worker.endDate.isBlank() || attendanceDate <= worker.endDate))
+    val statuses = remember(revision, attendanceDate) {
+        database.getWorkerAttendanceStatusesForDate(attendanceDate)
     }
-    val presentCount = eligibleWorkers.count { statuses[it.id] == "present" }
+    val eligibleWorkers = workersByType.filter { worker ->
+        worker.payType != "daily" ||
+            (attendanceDate >= worker.startDate && (worker.endDate.isBlank() || attendanceDate <= worker.endDate))
+    }
+    val futureDate = attendanceDate > today
+    val selectedStatuses = eligibleWorkers.associate { worker ->
+        worker.id to (pendingStatuses[worker.id] ?: statuses[worker.id] ?: "")
+    }
+    val presentCount = selectedStatuses.values.count { it == "present" }
     Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Column(Modifier.weight(1f)) {
                 Text("مرکز حاضری کارمندان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
-                Text("ثبت حاضری بر اساس تاریخ شمسی", color = TextMuted, fontSize = 12.sp)
+                Text("انتخاب تاریخ و ثبت گروهی حاضری", color = TextMuted, fontSize = 12.sp)
             }
             TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-            listOf("all" to "همه کارمندان", "monthly" to "کارمندان ماهانه", "daily" to "کارمندان روزانه").forEach { (type,label) ->
-                Button(onClick = { workerType = type; message = "" }, modifier = Modifier.weight(1f),
-                    colors = ButtonDefaults.buttonColors(containerColor = if(workerType==type) Burgundy else BurgundySoft, contentColor = if(workerType==type) Color.White else BurgundyDark),
+            listOf("all" to "همه کارمندان", "monthly" to "کارمندان ماهانه", "daily" to "کارمندان روزانه").forEach { (type, label) ->
+                Button(onClick = { workerType = type; pendingStatuses = emptyMap(); message = ""; isSaved = false },
+                    modifier = Modifier.weight(1f),
+                    colors = ButtonDefaults.buttonColors(containerColor = if (workerType == type) Burgundy else BurgundySoft, contentColor = if (workerType == type) Color.White else BurgundyDark),
                     contentPadding = PaddingValues(horizontal = 3.dp, vertical = 8.dp)) { Text(label, fontSize = 10.sp) }
             }
         }
-        JalaliDateInput(attendanceDate, { attendanceDate = it; message = "" }, "تاریخ حاضری")
-        Text("حاضر: $presentCount از ${eligibleWorkers.size}", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
-        if(message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
-        if(eligibleWorkers.isEmpty()) Text("برای این فیلتر و تاریخ کارمندی وجود ندارد.", color = TextMuted)
+        JalaliDateInput(attendanceDate, { selected ->
+            if (selected <= today) {
+                attendanceDate = selected
+                pendingStatuses = emptyMap()
+                message = ""
+                isSaved = false
+            } else {
+                message = "حاضری فقط تا تاریخ امروز قابل ثبت است؛ تاریخ آینده انتخاب نشود."
+            }
+        }, "تاریخ حاضری (حداکثر امروز)")
+        if (futureDate) Text("تاریخ آینده قابل ثبت نیست. تاریخ امروز یا گذشته را انتخاب کن.", color = Color(0xFFB33A32), fontSize = 12.sp)
+        Text("حاضر انتخاب‌شده: $presentCount از ${eligibleWorkers.size}", color = BurgundyDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        if (message.isNotBlank()) Text(message, color = if (isSaved) Color(0xFF287447) else BurgundyDark, fontSize = 12.sp)
+        if (eligibleWorkers.isEmpty()) Text("برای این فیلتر و تاریخ کارمندی وجود ندارد.", color = TextMuted)
         eligibleWorkers.forEach { worker ->
-            val status = statuses[worker.id]
-            val statusLabel = when(status) { "present" -> "حاضر"; "absent" -> "غایب"; "leave" -> "رخصتی"; else -> "ثبت نشده" }
-            val statusColor = when(status) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); "leave" -> Color(0xFFD9A326); else -> TextMuted }
+            val status = selectedStatuses[worker.id].orEmpty()
+            val statusLabel = when (status) { "present" -> "حاضر"; "absent" -> "غایب"; "leave" -> "رخصتی"; else -> "انتخاب نشده" }
+            val statusColor = when (status) { "present" -> Color(0xFF287447); "absent" -> Color(0xFFB33A32); "leave" -> Color(0xFFD9A326); else -> TextMuted }
             Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
                     Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
                         Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                        Text(if(worker.payType == "monthly") "کارمند ماهانه" else "کارمند روزانه", color = TextMuted, fontSize = 11.sp)
+                        Text(if (worker.payType == "monthly") "کارمند ماهانه" else "کارمند روزانه", color = TextMuted, fontSize = 11.sp)
                     }
                     Text(statusLabel, color = statusColor, fontWeight = FontWeight.Bold, fontSize = 12.sp)
                 }
-                Button(onClick = {
-                    val next = when(status) { null -> "present"; "present" -> "absent"; "absent" -> "leave"; else -> null }
-                    val ok = if (next == null) database.clearWorkerAttendanceStatus(worker.id, attendanceDate)
-                        else database.setWorkerAttendanceStatus(worker.id, attendanceDate, next)
-                    message = if (ok) "وضعیت حاضری ${worker.name} تغییر کرد." else "ثبت حاضری انجام نشد."
-                }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = if(status == null) BurgundySoft else statusColor, contentColor = if(status == null) BurgundyDark else Color.White)) {
-                    Text(when(status) { null -> "ثبت حضور"; "present" -> "حاضر"; "absent" -> "غایب"; else -> "رخصتی" }, fontSize = 12.sp)
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    listOf("" to "انتخاب", "present" to "حاضر", "absent" to "غایب", "leave" to "رخصتی").forEach { (value, label) ->
+                        Button(onClick = {
+                            pendingStatuses = pendingStatuses + (worker.id to value)
+                            message = ""
+                            isSaved = false
+                        }, modifier = Modifier.weight(1f),
+                            colors = ButtonDefaults.buttonColors(
+                                containerColor = if (status == value) when (value) {
+                                    "present" -> Color(0xFF287447)
+                                    "absent" -> Color(0xFFB33A32)
+                                    "leave" -> Color(0xFFD9A326)
+                                    else -> Burgundy
+                                } else BurgundySoft,
+                                contentColor = if (status == value) Color.White else BurgundyDark
+                            ), contentPadding = PaddingValues(horizontal = 2.dp, vertical = 6.dp)) {
+                            Text(label, fontSize = 10.sp)
+                        }
+                    }
                 }
             }
         }
+        Button(onClick = {
+            if (attendanceDate > today) {
+                message = "ثبت حاضری برای تاریخ آینده مجاز نیست."
+                isSaved = false
+            } else {
+                var failed = false
+                eligibleWorkers.forEach { worker ->
+                    val status = selectedStatuses[worker.id].orEmpty()
+                    val saved = when (status) {
+                        "present", "absent", "leave" -> database.setWorkerAttendanceStatus(worker.id, attendanceDate, status)
+                        else -> true
+                    }
+                    if (!saved) failed = true
+                }
+                isSaved = !failed
+                message = if (failed) "ثبت برخی حاضری‌ها ناموفق بود. دوباره بررسی کن."
+                    else "حاضری ${isoDateToJalali(attendanceDate)} برای ${eligibleWorkers.size} کارمند ثبت شد."
+                pendingStatuses = emptyMap()
+            }
+        }, modifier = Modifier.fillMaxWidth(), enabled = !futureDate && eligibleWorkers.isNotEmpty(),
+            colors = ButtonDefaults.buttonColors(containerColor = Burgundy, contentColor = Color.White),
+            shape = RoundedCornerShape(14.dp)) {
+            Text("ثبت حاضری این روز", modifier = Modifier.padding(vertical = 6.dp), fontWeight = FontWeight.Bold)
+        }
+        Text("ابتدا تاریخ را انتخاب کن، سپس وضعیت هر کارمند را تعیین کن و در پایان «ثبت حاضری این روز» را بزن.", color = TextMuted, fontSize = 11.sp)
     }
 }
 
