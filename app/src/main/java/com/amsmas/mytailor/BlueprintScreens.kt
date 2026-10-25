@@ -524,36 +524,113 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
 @Composable
 internal fun WorkerListScreen(database: LocalDatabase, onBack: () -> Unit) {
     var filter by remember { mutableStateOf("all") }
+    var searchText by remember { mutableStateOf("") }
+    var appliedSearch by remember { mutableStateOf("") }
+    var editingWorker by remember { mutableStateOf<WorkerRecord?>(null) }
     val revision = database.revision.intValue
-    val workers = remember(revision, filter) {
-        database.getWorkers(includeInactive = true).filter { filter == "all" || it.payType == filter }
+    val workers = remember(revision, filter, appliedSearch) {
+        database.getWorkers(includeInactive = true)
+            .filter { filter == "all" || it.payType == filter }
+            .filter { appliedSearch.isBlank() || it.name.contains(appliedSearch, ignoreCase = true) || it.phone.contains(appliedSearch, ignoreCase = true) }
     }
-    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+
+    if (editingWorker != null) {
+        WorkerProfileEditScreen(
+            worker = editingWorker!!,
+            onBack = { editingWorker = null },
+            onSave = { updated -> database.saveWorker(updated); editingWorker = null }
+        )
+        return
+    }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
             Text("فهرست کارمندان", color = BurgundyDark, fontSize = 22.sp, fontWeight = FontWeight.Bold)
             TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+            OutlinedTextField(
+                value = searchText, onValueChange = { searchText = it },
+                modifier = Modifier.weight(1f), label = { Text("جستجوی نام یا شماره") },
+                singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp)
+            )
+            Button(onClick = { appliedSearch = searchText.trim() },
+                colors = ButtonDefaults.buttonColors(containerColor = Burgundy),
+                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 14.dp)) { Text("جستجو", fontSize = 12.sp) }
         }
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             listOf("all" to "تمام کارمندان", "monthly" to "کارمندان ماهانه", "daily" to "کارمندان روزانه").forEach { (type, label) ->
                 Button(onClick = { filter = type }, modifier = Modifier.weight(1f),
                     colors = ButtonDefaults.buttonColors(containerColor = if (filter == type) Burgundy else BurgundySoft, contentColor = if (filter == type) Color.White else BurgundyDark),
-                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 9.dp)) { Text(label, fontSize = 10.sp) }
+                    contentPadding = PaddingValues(horizontal = 4.dp, vertical = 7.dp)) { Text(label, fontSize = 10.sp) }
             }
         }
         Text("تعداد کارمندان: ${workers.size}", color = TextMuted, fontSize = 12.sp)
-        if (workers.isEmpty()) Text("کارمندی در این فهرست وجود ندارد.", color = TextMuted)
-        workers.forEach { worker ->
-            Row(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(14.dp)).padding(13.dp),
-                verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(worker.name, color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                    if (worker.phone.isNotBlank()) Text(worker.phone, color = TextMuted, fontSize = 12.sp)
-                    Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = TextDark, fontSize = 12.sp)
-                    if (worker.payType == "daily") Text("قرارداد: ${worker.startDate} تا ${worker.endDate.ifBlank { "بدون تاریخ ختم" }}", color = TextMuted, fontSize = 10.sp)
-                    if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 11.sp)
+        if (workers.isEmpty()) Text("کارمندی مطابق جستجو پیدا نشد.", color = TextMuted)
+        workers.forEachIndexed { index, worker ->
+            Row(
+                Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(12.dp)).padding(horizontal = 8.dp, vertical = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(7.dp)
+            ) {
+                TextButton(onClick = { editingWorker = worker }, contentPadding = PaddingValues(horizontal = 5.dp, vertical = 4.dp)) {
+                    Text("ویرایش", color = Burgundy, fontSize = 11.sp)
+                }
+                Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    Text(worker.name, color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                    Text("${payTypeLabel(worker.payType)} · ${blueprintMoney(worker.payRate)} افغانی", color = TextDark, fontSize = 10.sp)
+                    if (!worker.active) Text("غیرفعال", color = TextMuted, fontSize = 10.sp)
+                }
+                Text("${index + 1}", color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(horizontal = 4.dp))
+            }
+        }
+    }
+}
+
+@Composable
+private fun WorkerProfileEditScreen(worker: WorkerRecord, onBack: () -> Unit, onSave: (WorkerRecord) -> Unit) {
+    var name by remember(worker.id) { mutableStateOf(worker.name) }
+    var phone by remember(worker.id) { mutableStateOf(worker.phone) }
+    var address by remember(worker.id) { mutableStateOf(worker.address) }
+    var payType by remember(worker.id) { mutableStateOf(worker.payType) }
+    var payRate by remember(worker.id) { mutableStateOf(worker.payRate.toString().removeSuffix(".0")) }
+    var startDate by remember(worker.id) { mutableStateOf(worker.startDate.ifBlank { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }) }
+    var endDate by remember(worker.id) { mutableStateOf(worker.endDate) }
+    var message by remember(worker.id) { mutableStateOf("") }
+
+    Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
+            Text("پروفایل کارمند", color = BurgundyDark, fontSize = 21.sp, fontWeight = FontWeight.Bold)
+            TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
+        }
+        Text("ویرایش معلومات کارمند", color = TextMuted, fontSize = 12.sp)
+        OutlinedTextField(name, { name = it; message = "" }, Modifier.fillMaxWidth(), label = { Text("نام کارمند *") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        OutlinedTextField(phone, { phone = it }, Modifier.fillMaxWidth(), label = { Text("شماره تماس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        OutlinedTextField(address, { address = it }, Modifier.fillMaxWidth(), label = { Text("آدرس") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        Text("روش پرداخت معاش", color = TextDark, fontWeight = FontWeight.SemiBold, fontSize = 13.sp)
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+            BlueprintPayTypes.forEach { type ->
+                Column(Modifier.weight(1f).background(if (payType == type) Burgundy else BurgundySoft, RoundedCornerShape(10.dp)).clickable { payType = type }.padding(vertical = 10.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(payTypeLabel(type), color = if (payType == type) Color.White else BurgundyDark, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                 }
             }
         }
+        OutlinedTextField(payRate, { payRate = it }, Modifier.fillMaxWidth(), label = { Text("مبلغ معاش / نرخ هر مرحله (افغانی)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
+        if (payType == "daily") {
+            JalaliDateInput(startDate, { startDate = it }, "تاریخ شروع کار")
+            JalaliDateInput(endDate, { endDate = it }, "تاریخ ختم کار (اختیاری)", allowBlank = true)
+        }
+        Button(onClick = {
+            val rate = payRate.toEnglishDigits().replace(",", "").toDoubleOrNull()
+            when {
+                name.isBlank() -> message = "نام کارمند را وارد کنید."
+                rate == null || rate < 0 -> message = "مبلغ معتبر وارد کنید."
+                payType == "daily" && !validIsoDate(startDate) -> message = "تاریخ شروع کار معتبر نیست."
+                payType == "daily" && endDate.isNotBlank() && (!validIsoDate(endDate) || endDate < startDate) -> message = "تاریخ ختم معتبر نیست."
+                else -> onSave(worker.copy(name = name.trim(), phone = phone.trim(), address = address.trim(), payType = payType, payRate = rate, startDate = if (payType == "daily") startDate else "", endDate = if (payType == "daily") endDate else ""))
+            }
+        }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy), shape = RoundedCornerShape(12.dp)) { Text("ذخیره تغییرات") }
+        if (message.isNotBlank()) Text(message, color = BurgundyDark, fontSize = 12.sp)
     }
 }
 
