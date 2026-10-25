@@ -1040,7 +1040,10 @@ private fun OrderRegistrationScreen(database: LocalDatabase, onBack: () -> Unit,
                         text = { Text(model.name, color = TextDark) },
                         onClick = {
                             selectedModelName = model.name
-                            measurements = model.measurements.associateWith { measurements[it] ?: "" }
+                            val savedMeasurements = database.getLatestCustomerMeasurements(customerName, phone, model.name)
+                            measurements = model.measurements.associateWith { field ->
+                                savedMeasurements[field] ?: measurements[field] ?: ""
+                            }
                             modelMenuExpanded = false
                             message = ""
                         }
