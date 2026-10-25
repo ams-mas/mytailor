@@ -24,7 +24,7 @@ import androidx.compose.ui.unit.sp
 import java.text.SimpleDateFormat
 import java.util.Locale
 
-private val BlueprintPayTypes = listOf("daily", "weekly", "monthly", "piece_rate")
+private val BlueprintPayTypes = listOf("daily", "monthly", "piece_rate")
 private fun payTypeLabel(type: String): String = when (type) {
     "daily" -> "روزانه"
     "weekly" -> "هفتگی"
