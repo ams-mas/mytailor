@@ -218,12 +218,14 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
     }
     var startDate by remember { mutableStateOf(monthStart) }
     var endDate by remember { mutableStateOf(today) }
-    var attendanceDate by remember { mutableStateOf(today) }
+    var workerType by remember { mutableStateOf("monthly") }
+    var paymentAmounts by remember { mutableStateOf(mapOf<Int, String>()) }
     var message by remember { mutableStateOf("") }
     val revision = database.revision.intValue
-    val payroll = remember(revision, startDate, endDate) { database.getWorkerPayroll(startDate, endDate) }
-    val monthlyRows = payroll.filter { it.payType == "monthly" }
-    val dailyRows = payroll.filter { it.payType == "daily" }
+    val allPayroll = remember(revision, startDate, endDate) { database.getWorkerPayroll(startDate, endDate) }
+    val payroll = allPayroll.filter { it.payType == workerType }
+    val monthlyRows = allPayroll.filter { it.payType == "monthly" }
+    val dailyRows = allPayroll.filter { it.payType == "daily" }
     val monthlyDue = monthlyRows.sumOf { it.due }
     val dailyDue = dailyRows.sumOf { it.due }
     val paidTotal = payroll.sumOf { it.paid }
@@ -238,10 +240,16 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
             TextButton(onClick = onBack) { Text("برگشت", color = Burgundy) }
         }
         Column(Modifier.fillMaxWidth().background(Color.White, RoundedCornerShape(16.dp)).padding(13.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf("monthly" to "کارمند ماهانه", "daily" to "کارمند روزانه").forEach { (type, label) ->
+                    Button(onClick = { workerType = type; message = "" }, modifier = Modifier.weight(1f),
+                        colors = ButtonDefaults.buttonColors(containerColor = if (workerType == type) Burgundy else BurgundySoft, contentColor = if (workerType == type) Color.White else BurgundyDark),
+                        contentPadding = PaddingValues(horizontal = 5.dp, vertical = 9.dp)) { Text(label, fontSize = 12.sp) }
+                }
+            }
             OutlinedTextField(startDate, { startDate = it }, Modifier.fillMaxWidth(), label = { Text("از تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
             OutlinedTextField(endDate, { endDate = it }, Modifier.fillMaxWidth(), label = { Text("تا تاریخ (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-            OutlinedTextField(attendanceDate, { attendanceDate = it }, modifier = Modifier.fillMaxWidth(), label = { Text("تاریخ حاضری (YYYY-MM-DD)") }, singleLine = true, colors = appFieldColors(), shape = RoundedCornerShape(12.dp))
-            Text("برای کارمند روزانه، تاریخ حاضری را وارد و ثبت کنید.", color = TextMuted, fontSize = 11.sp)
+            Text("نوع کارمند را انتخاب کنید و مقدار پرداخت را برای هر نفر جداگانه وارد کنید.", color = TextMuted, fontSize = 11.sp)
         }
         Column(Modifier.fillMaxWidth().background(Brush.linearGradient(listOf(BurgundyDark, Burgundy)), RoundedCornerShape(20.dp)).padding(18.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.SpaceBetween) {
@@ -282,19 +290,29 @@ internal fun WorkerPayrollScreen(database: LocalDatabase, onBack: () -> Unit) {
                 Text("واحد محاسبه: ${row.units} · استحقاق: ${blueprintMoney(row.earned)} افغانی", color = TextDark, fontSize = 13.sp)
                 Text("پرداخت‌شده: ${blueprintMoney(row.paid)} افغانی", color = TextMuted, fontSize = 12.sp)
                 Text("باقی معاش: ${blueprintMoney(row.due)} افغانی", color = BurgundyDark, fontSize = 15.sp, fontWeight = FontWeight.Bold)
-                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    if (row.payType == "daily") {
-                        Button(onClick = {
-                            val saved = database.recordWorkerAttendance(row.workerId, attendanceDate)
-                            message = if (saved) "حاضری ${attendanceDate} برای ${row.name} ثبت شد." else "حاضری ثبت نشد؛ تاریخ را بررسی کنید یا این روز خارج از قرارداد کارمند است."
-                        }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = BurgundySoft, contentColor = BurgundyDark), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("ثبت حاضری امروز", fontSize = 11.sp) }
+                OutlinedTextField(
+                    value = paymentAmounts[row.workerId].orEmpty(),
+                    onValueChange = { value -> paymentAmounts = paymentAmounts + (row.workerId to value.filter { it.isDigit() || it == '.' }) },
+                    modifier = Modifier.fillMaxWidth(),
+                    label = { Text("مقدار پرداخت فعلی (افغانی)") },
+                    singleLine = true,
+                    colors = appFieldColors(),
+                    shape = RoundedCornerShape(12.dp)
+                )
+                Button(onClick = {
+                    val amount = paymentAmounts[row.workerId]?.toDoubleOrNull()
+                    when {
+                        amount == null || amount <= 0 -> message = "مقدار پرداخت را وارد کنید."
+                        row.due <= 0 -> message = "برای این بازه معاش باقی نمانده است."
+                        amount > row.due -> message = "مقدار پرداخت نمی‌تواند بیشتر از باقی‌مانده معاش (${blueprintMoney(row.due)} افغانی) باشد."
+                        database.markWorkerPaid(row.workerId, amount, startDate, endDate, "پرداخت جزئی معاش") -> {
+                            paymentAmounts = paymentAmounts - row.workerId
+                            message = "پرداخت ${blueprintMoney(amount)} افغانی برای ${row.name} ثبت شد."
+                        }
+                        else -> message = "ثبت پرداخت ناموفق بود."
                     }
-                    Button(onClick = {
-                        if (row.due > 0) {
-                            database.markWorkerPaid(row.workerId, row.due, startDate, endDate, "پرداخت معاش بازه انتخاب‌شده")
-                            message = "پرداخت معاش ${row.name} ثبت شد."
-                        } else message = "برای این بازه معاش باقی نمانده است."
-                    }, modifier = Modifier.weight(1f), colors = ButtonDefaults.buttonColors(containerColor = Burgundy, contentColor = Color.White), shape = RoundedCornerShape(10.dp), contentPadding = PaddingValues(4.dp)) { Text("علامت‌گذاری پرداخت", fontSize = 11.sp) }
+                }, modifier = Modifier.fillMaxWidth(), colors = ButtonDefaults.buttonColors(containerColor = Burgundy, contentColor = Color.White), shape = RoundedCornerShape(10.dp)) {
+                    Text("ثبت پرداخت معاش")
                 }
             }
         }
