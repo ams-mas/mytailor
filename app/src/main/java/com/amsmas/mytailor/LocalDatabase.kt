@@ -303,6 +303,12 @@ internal class LocalDatabase(context: Context) :
         f.parse(value) != null && f.format(f.parse(value)!!) == value
     }.getOrDefault(false)
 
+    fun clearWorkerAttendanceStatus(workerId: Int, workDate: String): Boolean {
+        val deleted = writableDatabase.delete("worker_attendance", "worker_id=? AND work_date=?", arrayOf(workerId.toString(), workDate))
+        if (deleted > 0) notifyChanged()
+        return deleted > 0
+    }
+
     fun getWorkerAttendanceForDate(workDate: String): Set<Int> {
         val workerIds = mutableSetOf<Int>()
         readableDatabase.rawQuery("SELECT worker_id FROM worker_attendance WHERE work_date = ? AND status='present'", arrayOf(workDate)).use { cursor ->
