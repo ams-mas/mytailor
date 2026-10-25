@@ -292,7 +292,7 @@ private fun TailorHome(database: LocalDatabase, onBackup: () -> Unit, onRestore:
     Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
-                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(this, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
+                savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(this@MainActivity, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.ORDERS })
                 showOrderForm -> OrderRegistrationScreen(database = database, onBack = { showOrderForm = false }, onSave = { order -> savedOrderForReceipt = order })
                 selected == MainTab.HOME -> DashboardContent(database = database, onOpenDeliveries = { selected = MainTab.DELIVERY })
                 selected == MainTab.ORDERS -> SimpleSection("سفارشات", "مدیریت تمام سفارش‌های خیاطی")
