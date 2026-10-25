@@ -451,7 +451,7 @@ private fun ReportsScreen(database: LocalDatabase) {
     val revision = database.revision.intValue
     val counts = remember(revision) { database.getOrderCounts() }
     val customers = remember(revision) { database.getCustomers() }
-    val tailors = remember(revision) { database.getTailors() }
+    val tailors = remember(revision) { database.getWorkers() }
     val skills = remember(revision) { database.getSkills() }
     val models = remember(revision) { database.getGarmentModels() }
     val financial = remember(revision) { database.getFinancialReport() }
