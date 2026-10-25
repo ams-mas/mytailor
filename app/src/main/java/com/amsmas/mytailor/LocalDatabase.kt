@@ -13,6 +13,7 @@ import org.json.JSONObject
  */
 internal data class CustomerSummary(val name: String, val phone: String, val activeOrderCount: Int, val orderCount: Int, val remaining: Double, val lastDeliveryDate: String)
 internal data class CustomerOrderHistory(val id: Int, val registeredAt: String, val deliveryDate: String, val garmentModel: String, val measurementsJson: String, val notes: String, val price: Double, val deposit: Double, val paid: Double, val remaining: Double, val status: String)
+internal data class DeliveryOrder(val id: Int, val customerName: String, val phone: String, val garmentModel: String, val deliveryDate: String, val price: Double, val paid: Double, val remaining: Double, val status: String)
 
 internal class LocalDatabase(context: Context) :
     SQLiteOpenHelper(context.applicationContext, DATABASE_NAME, null, DATABASE_VERSION) {
@@ -246,6 +247,57 @@ internal class LocalDatabase(context: Context) :
 
     fun deleteCustomerOrders(name: String, phone: String) {
         writableDatabase.delete("orders", "customer_name = ? AND phone = ?", arrayOf(name, phone))
+    }
+
+    fun getReadyForDeliveryOrders(search: String = ""): List<DeliveryOrder> {
+        val result = mutableListOf<DeliveryOrder>()
+        val term = search.trim()
+        val sql = """
+            SELECT id, customer_name, phone, garment_model, delivery_date, price, paid, remaining, status
+            FROM orders
+            WHERE status = 'ready'
+              AND (? = '' OR customer_name LIKE ? OR phone LIKE ?)
+            ORDER BY id DESC
+        """.trimIndent()
+        readableDatabase.rawQuery(sql, arrayOf(term, "%$term%", "%$term%")).use { cursor ->
+            while (cursor.moveToNext()) {
+                result.add(DeliveryOrder(
+                    id = cursor.getInt(0),
+                    customerName = cursor.getString(1),
+                    phone = cursor.getString(2),
+                    garmentModel = cursor.getString(3),
+                    deliveryDate = cursor.getString(4),
+                    price = cursor.getDouble(5),
+                    paid = cursor.getDouble(6),
+                    remaining = cursor.getDouble(7),
+                    status = cursor.getString(8)
+                ))
+            }
+        }
+        return result
+    }
+
+    fun collectRemainingAndDeliver(orderId: Int, paymentAmount: Double): Boolean {
+        val db = writableDatabase
+        db.beginTransaction()
+        try {
+            val current = db.rawQuery("SELECT remaining, paid, status FROM orders WHERE id = ?", arrayOf(orderId.toString())).use { cursor ->
+                if (!cursor.moveToFirst() || cursor.getString(2) != "ready") return false
+                Triple(cursor.getDouble(0), cursor.getDouble(1), cursor.getString(2))
+            }
+            if (paymentAmount < 0 || paymentAmount > current.first + 0.0001) return false
+            val newRemaining = (current.first - paymentAmount).coerceAtLeast(0.0)
+            if (newRemaining > 0.0001) return false
+            db.update("orders", ContentValues().apply {
+                put("paid", current.second + paymentAmount)
+                put("remaining", 0.0)
+                put("status", "delivered")
+            }, "id = ? AND status = 'ready'", arrayOf(orderId.toString()))
+            db.setTransactionSuccessful()
+            return true
+        } finally {
+            db.endTransaction()
+        }
     }
 
     fun updateOrderStatus(orderId: Int, status: String) {
