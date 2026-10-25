@@ -376,6 +376,8 @@ internal fun WorkerDailyAttendanceScreen(database: LocalDatabase, onBack: () -> 
     }
 }
 
+private fun reportPersianDigits(value: String): String = value.map { ch -> if (ch in '0'..'9') ('۰'.code + (ch - '0')).toChar() else ch }.joinToString("")
+
 @Composable
 internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -> Unit) {
     val today = remember { SimpleDateFormat("yyyy-MM-dd", Locale.US).format(java.util.Date()) }
@@ -480,7 +482,7 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
                     val monthStatuses = remember(revision, row.workerId, monthStartIso, monthEndIso) {
                         database.getWorkerAttendanceStatusesForWorker(row.workerId, monthStartIso, monthEndIso)
                     }
-                    Text("تقویم حاضری: $monthLabel ${jalaliYear.toString().toPersianDigits()}", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                    Text("تقویم حاضری: $monthLabel ${reportPersianDigits(jalaliYear.toString())}", color = BurgundyDark, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                         listOf(Color(0xFF287447) to "حاضر", Color(0xFFB33A32) to "غایب", Color(0xFFD9A326) to "رخصتی", Color(0xFFE9E2DE) to "ثبت‌نشده").forEach { (color, label) ->
                             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(3.dp)) {
@@ -501,7 +503,7 @@ internal fun WorkerAttendanceReportsScreen(database: LocalDatabase, onBack: () -
                                         expandedWorkerId = row.workerId
                                     }
                                 }, contentAlignment = Alignment.Center) {
-                                    Text(day.toString().toPersianDigits(), color = if(dayStatus == null) BurgundyDark else Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
+                                    Text(reportPersianDigits(day.toString()), color = if(dayStatus == null) BurgundyDark else Color.White, fontSize = 11.sp, fontWeight = FontWeight.SemiBold)
                                 }
                             }
                             repeat(7 - week.size) { Spacer(Modifier.weight(1f)) }
