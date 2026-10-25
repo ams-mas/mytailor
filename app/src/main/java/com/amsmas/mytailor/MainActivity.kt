@@ -1330,11 +1330,15 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             onDismissRequest = { confirmCustomerDelete = false },
             title = { Text("حذف مشتری") },
             text = { Text("آیا مطمئن هستید؟ تمام سفارش‌های این مشتری نیز حذف می‌شود و این کار قابل برگشت نیست.") },
-            confirmButton = { androidx.compose.material3.TextButton(onClick = {
-                database.deleteCustomerOrders(customer.name, customer.phone)
-                confirmCustomerDelete = false
-                onBack()
-            }) { Text("بله، حذف شود", color = Color(0xFFB33A32)) } },
+            confirmButton = { androidx.compose.material3.TextButton(enabled = customer.activeOrderCount == 0 && customer.remaining <= 0, onClick = {
+                if (customer.activeOrderCount == 0 && customer.remaining <= 0) {
+                    database.deleteCustomerOrders(customer.name, customer.phone)
+                    confirmCustomerDelete = false
+                    onBack()
+                } else {
+                    confirmCustomerDelete = false
+                }
+            }) { Text("بله، حذف شود", color = Color(0xFFB33A32)) },
             dismissButton = { androidx.compose.material3.TextButton(onClick = { confirmCustomerDelete = false }) { Text("انصراف") } }
         )
     }
@@ -1378,9 +1382,12 @@ private fun CustomerOrderHistoryScreen(database: LocalDatabase, customer: Custom
             Text("مشخصات مشتری", color = BurgundyDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text("نام مشتری: ${customer.name}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 6.dp))
             Text("شماره تلفن: ${customer.phone.ifBlank { "ثبت نشده" }}", color = TextDark, fontSize = 13.sp, modifier = Modifier.padding(top = 4.dp))
+            if (customer.activeOrderCount > 0 || customer.remaining > 0) {
+                Text("تا زمانی که مشتری سفارش فعال یا بدهی داشته باشد، حذف مشتری غیرفعال است.", color = Color(0xFFB33A32), fontSize = 11.sp, modifier = Modifier.padding(top = 4.dp))
+            }
             Row(Modifier.fillMaxWidth().padding(top = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 androidx.compose.material3.OutlinedButton(onClick = { pendingCustomerName = customer.name; pendingCustomerPhone = customer.phone; editCustomer = true }, modifier = Modifier.weight(1f)) { Text("ویرایش مشخصات", color = Burgundy, fontSize = 11.sp) }
-                androidx.compose.material3.OutlinedButton(onClick = { confirmCustomerDelete = true }, modifier = Modifier.weight(1f)) { Text("حذف مشتری", color = Color(0xFFB33A32), fontSize = 11.sp) }
+                androidx.compose.material3.OutlinedButton(enabled = customer.activeOrderCount == 0 && customer.remaining <= 0, onClick = { confirmCustomerDelete = true }, modifier = Modifier.weight(1f)) { Text("حذف مشتری", color = if (customer.activeOrderCount == 0 && customer.remaining <= 0) Color(0xFFB33A32) else TextMuted, fontSize = 11.sp) }
             }
             Row(Modifier.fillMaxWidth().padding(top = 10.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Column(Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp)).padding(8.dp)) {
