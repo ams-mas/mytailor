@@ -1264,10 +1264,17 @@ private fun CustomerListScreen(database: LocalDatabase) {
                             }
                         }
                         Spacer(Modifier.height(10.dp))
-                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                            Text("تعداد سفارش: ${customer.orderCount.toString().toPersianDigits()}", color = BurgundyDark, fontSize = 13.sp, fontWeight = FontWeight.SemiBold)
-                            Text("باقیمانده: ${formatReceiptAmount(customer.remaining)}", color = if (customer.remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold)
+                        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                            Column(Modifier.weight(1f).background(BurgundySoft, RoundedCornerShape(10.dp)).padding(10.dp)) {
+                                Text("سفارش فعال:", color = TextMuted, fontSize = 12.sp)
+                                Text(customer.activeOrderCount.toString().toPersianDigits(), color = BurgundyDark, fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp))
+                            }
+                            Column(Modifier.weight(1f).background(Color(0xFFE8EEF9), RoundedCornerShape(10.dp)).padding(10.dp)) {
+                                Text("کل سفارشات:", color = TextMuted, fontSize = 12.sp)
+                                Text(customer.orderCount.toString().toPersianDigits(), color = Color(0xFF2856A6), fontSize = 17.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 3.dp))
+                            }
                         }
+                        Text("باقیمانده: ${formatReceiptAmount(customer.remaining)}", color = if (customer.remaining > 0) Color(0xFFB33A32) else Color(0xFF237342), fontSize = 13.sp, fontWeight = FontWeight.Bold, modifier = Modifier.padding(top = 9.dp))
                         if (customer.lastDeliveryDate.isNotBlank()) {
                             Text("تاریخ تحویل آخرین سفارش: ${customer.lastDeliveryDate}", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(top = 7.dp))
                         }
