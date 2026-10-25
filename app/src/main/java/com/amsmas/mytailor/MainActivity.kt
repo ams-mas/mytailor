@@ -543,8 +543,7 @@ private fun GarmentModelsScreen(database: LocalDatabase, onBack: () -> Unit) {
         if (editing && models.getOrNull(selectedModel) != null) {
             Spacer(Modifier.height(18.dp))
             Text("ویرایش مدل لباس", color = TextDark, fontSize = 16.sp, fontWeight = FontWeight.Bold)
-            OutlinedTextField(value = editName, onValueChange = { editName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors()
-                shape = RoundedCornerShape(16.dp),)
+            OutlinedTextField(value = editName, onValueChange = { editName = it; message = "" }, modifier = Modifier.fillMaxWidth().padding(top = 8.dp), singleLine = true, label = { Text("نام مدل لباس") }, colors = appFieldColors(), shape = RoundedCornerShape(16.dp))
             Text("ترتیب اندازه‌گیری", color = TextDark, fontSize = 14.sp, fontWeight = FontWeight.SemiBold, modifier = Modifier.padding(top = 12.dp, bottom = 4.dp))
             Text("برای جابه‌جایی، انگشت خود را روی خودِ تکست‌باکس اندازه نگه دارید و آن را بالا یا پایین بکشید؛ سپس ذخیره را بزنید.", color = TextMuted, fontSize = 12.sp, modifier = Modifier.padding(bottom = 6.dp))
             var draggingMeasurementIndex by remember { mutableIntStateOf(-1) }
