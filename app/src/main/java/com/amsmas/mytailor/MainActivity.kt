@@ -65,7 +65,7 @@ private fun loginFieldColors() = OutlinedTextFieldDefaults.colors(
 private val Burgundy: Color = Color(0xFF702027)
 private val BurgundyDark: Color = Color(0xFF55191E)
 private val BurgundySoft = Color(0xFFF4E7E8)
-private val PageBg = Color(0xFFFAF7F4)
+private val PageBg = Color.Transparent
 private val CardBg = Color(0xFFFFFFFF)
 private val BorderSoft = Color(0xFFD9C6C5)
 private val TextDark = Color(0xFF302627)
@@ -75,6 +75,8 @@ private data class ShopSkill(val name: String)
 internal data class GarmentModel(val name: String, val measurements: List<String>)
 internal data class TailorOrder(val customerName: String, val phone: String, val garmentModel: String, val measurements: Map<String, String>, val notes: String, val deliveryDate: String, val price: Double, val deposit: Double, val paid: Double)
 private enum class MainTab(val title: String, val symbol: String) { HOME("خانه", "⌂"), CUSTOMERS("مشتریان", "♙"), ORDERS("سفارشات", "▤"), DELIVERY("تحویل", "▣"), REPORTS("گزارشات", "▥"), FINANCE("مالی", "؋"), SETTINGS("تنظیمات", "⚙") }
+private const val APP_BACKGROUND_IMAGE_URL =
+    "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/tailoring_wallpaper_4K.png"
 private const val WORKSHOP_IMAGE_URL =
     "https://raw.githubusercontent.com/ams-mas/mytailor/main/app/src/main/res/drawable/images/login_background.png"
 
@@ -303,7 +305,14 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
         shopSkills = database.getSkills().map { ShopSkill(it) }
         registeredTailors = database.getTailors()
     }
-    Column(Modifier.fillMaxSize().background(PageBg).windowInsetsPadding(WindowInsets.statusBars)) {
+    Box(Modifier.fillMaxSize()) {
+        AsyncImage(
+            model = APP_BACKGROUND_IMAGE_URL,
+            contentDescription = "پس‌زمینه خیاطی",
+            modifier = Modifier.fillMaxSize(),
+            contentScale = ContentScale.Crop
+        )
+        Column(Modifier.fillMaxSize().background(Color.Transparent).windowInsetsPadding(WindowInsets.statusBars)) {
         Box(Modifier.weight(1f).fillMaxWidth()) {
             when {
                 savedOrderForReceipt != null -> OrderSuccessScreen(order = savedOrderForReceipt!!, onPrint = { printOrderReceipt(context, savedOrderForReceipt!!) }, onDone = { savedOrderForReceipt = null; showOrderForm = false; selected = MainTab.HOME })
@@ -407,10 +416,7 @@ private fun TailorHome(context: Context, database: LocalDatabase, onBackup: () -
         }
     }
 }
-
-
-
-
+}
 
 @Composable
 private fun ReportsScreen(database: LocalDatabase) {
